@@ -1,0 +1,9 @@
+This project is not affiliated with Anthropic, CC Switch, or magpie.
+
+The MIT license covers this project's code and documentation only.
+Claude Desktop and official translation resources belong to their respective
+rights holders. Runtime catalog imports are stored locally in .catalogs and
+are not included in the source repository or the npm file list. Do not treat
+availability at a public URL as a license to redistribute those resources.
+Keep provenance when importing a catalog. No Claude executable or application
+bundle is distributed by this project.

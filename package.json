@@ -1,0 +1,12 @@
+{
+  "name": "claude-desktop-3p-zh",
+  "version": "0.1.0",
+  "description": "Use official Chinese catalogs in Claude Desktop third-party mode",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "bin": { "claude-3p-zh": "bin/claude-3p-zh.mjs" },
+  "scripts": { "test": "node --test", "check": "node bin/claude-3p-zh.mjs help" },
+  "license": "MIT",
+  "files": ["bin", "lib", "scripts", "integrations", "docs", "README.md", "LICENSE", "NOTICE"]
+}

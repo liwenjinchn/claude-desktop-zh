@@ -1,0 +1,8 @@
+{
+  "name": "magpie-claude-desktop-3p-zh",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chinese locale preferences and CLI instructions for Claude Desktop 3p",
+  "license": "MIT",
+  "magpie": { "page": { "title": "Claude 中文", "file": "page/index.html" }, "permissions": [] }
+}
