@@ -6,7 +6,7 @@
   "private": true,
   "engines": { "node": ">=22" },
   "bin": { "claude-3p-zh": "bin/claude-3p-zh.mjs" },
-  "scripts": { "test": "node --test", "check": "node bin/claude-3p-zh.mjs help" },
+  "scripts": { "test": "node --test test/*.test.mjs", "check": "node bin/claude-3p-zh.mjs help" },
   "license": "MIT",
   "files": ["bin", "lib", "scripts", "integrations", "docs", "README.md", "LICENSE", "NOTICE"]
 }

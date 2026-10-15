@@ -1,6 +1,6 @@
 # 实现与恢复设计
 
-调用顺序是 `catalog cache/import/fetch` → `plan` → `prepare-copy` → `launch`。脚本和 magpie 页面只处理用户输入；补丁、资源匹配和恢复由 CLI 模块统一负责。
+调用顺序是 `catalog cache/import/fetch` → `plan` → `prepare-copy` → `launch`。脚本、magpie 页面和 Bun 宿主适配器处理用户输入；补丁、资源匹配和恢复由 CLI 模块统一负责。
 
 ## 选择独立副本
 
@@ -24,4 +24,4 @@
 
 ## 保持更新可解释
 
-不通过修改 ACL、EXE fuse、ASAR 完整性、SIP、Gatekeeper 来扩大兼容范围。不提供常驻后台进程。应用更新后重新 `inspect` 并创建新副本。首版没有自动更新副本，也不向 magpie 注入不存在的网关生命周期 hook。
+不通过修改 ACL、EXE fuse、ASAR 完整性、SIP、Gatekeeper 来扩大兼容范围。未实现系统常驻服务；可选自动同步仅在 magpie 宿主存活时轮询。应用更新后重新 `inspect` 并创建新副本。首版没有自动更新副本，也不向 magpie 注入不存在的网关生命周期 hook。

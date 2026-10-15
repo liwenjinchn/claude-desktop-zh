@@ -5,3 +5,9 @@ dist/
 .DS_Store
 __pycache__/
 test-results.local.json
+
+.env
+.env.*
+!.env.example
+*.key
+*.pem
