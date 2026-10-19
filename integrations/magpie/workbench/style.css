@@ -1,0 +1,18 @@
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; background: Canvas; color: CanvasText; }
+body { margin: 0; padding: 28px; }
+main { max-width: 760px; }
+h1 { font-size: 24px; margin-bottom: 8px; }
+h2 { font-size: 17px; margin: 28px 0 8px; }
+p, li { line-height: 1.7; }
+dl { display: grid; grid-template-columns: 8em 1fr; gap: 6px 12px; margin: 0; }
+dt { color: GrayText; }
+dd { margin: 0; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+button, select { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid GrayText; background: Canvas; color: inherit; }
+select { margin-left: 8px; }
+[hidden] { display: none !important; }
+button[data-write="true"] { border-color: currentColor; }
+button:disabled { opacity: 0.55; }
+.note { color: GrayText; }
+pre { padding: 16px; border: 1px solid GrayText; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 8em; }
+code { font-family: ui-monospace, monospace; }

@@ -1,0 +1,18 @@
+{
+  "tool": "built-in image_gen",
+  "transparentBackground": true,
+  "variants": [
+    {
+      "file": "images/mascot-speech.png",
+      "prompt": "Use case: logo-brand. Asset: square app icon for the open-source magpie plugin magpie-claude-zh, a Chinese language loader for Claude Desktop. Create one polished kawaii anime mascot logo: a cheerful adult female translator shown as a compact chibi head-and-shoulders portrait, fluffy warm terracotta orange bob hair, expressive dark eyes, cream collared outfit, a small Claude-style orange radial asterisk hairpin. She holds a bold cream speech-bubble placard bearing only the exact large Chinese character \"译\". A smaller separate speech bubble with capital \"A\" makes the English-to-Chinese meaning immediate. Flat clean shapes with confident warm dark outlines, very restrained cel shading, warm ivory and Claude orange with a small sage accent. Balanced centered composition, simple silhouette, large face and translation symbol remain clear as a 64px icon. Actual transparent background, generous safe margins, no outer background tile, no extra words, no watermark. Single character and single icon, not a sheet."
+    },
+    {
+      "file": "images/mascot-beret.png",
+      "prompt": "Use case: logo-brand. Asset: alternate square icon for the open-source Chinese localization plugin magpie-claude-zh. Create a distinct original chibi anime translator girl mascot, adult character, orange and cream palette inspired by Claude. Close head-and-shoulders portrait with soft long orange hair tied into two low buns, a warm clever smile, a dark terracotta beret carrying an ivory radial star emblem, cream blouse and small orange ribbon. Two big overlapping translation speech bubbles in front of her chest, exact characters \"中\" and \"A\", connected by a small curved arrow. Rich but clean Japanese cartoon line work, flat vector-like fills, minimal shading, strong icon silhouette and excellent readability at 64px, centered square framing with clear padding. Actual transparent background, no background tile, no other text, no watermark. One complete mascot icon only."
+    },
+    {
+      "file": "images/mascot-book.png",
+      "prompt": "Use case: logo-brand. Asset: a third square mascot logo option for magpie-claude-zh, a plugin that loads official Chinese into Claude Desktop. A lively adult female anime mascot in compact chibi bust style, short apricot orange hair with a little outward curl and a Claude-inspired orange radial asterisk clip, round small glasses, cream and terracotta outfit. She presents an open little translation book: exact large capital \"A\" on one page and Chinese character \"中\" on the other. Friendly wink, hands and book clearly readable, restrained bold contours and flat warm colors, tiny sage detail, premium cute app-icon drawing rather than a full illustration. Face fills upper half, translation book fills lower center. Square centered composition, safe margin, recognizable in small plugin cards. Actual transparent background with no tile, no watermark, no extra lettering. One mascot and one icon."
+    }
+  ]
+}

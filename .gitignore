@@ -1,4 +1,5 @@
 .catalogs/
+.handoff/
 node_modules/
 dist/
 *.log

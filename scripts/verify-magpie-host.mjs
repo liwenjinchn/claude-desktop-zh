@@ -30,14 +30,15 @@ function rpc(method, params) {
   });
 }
 try {
-  const init = await rpc('init', { directory: temporary, authPath: path.join(temporary, 'auth.json'), plugins: [{ spec: target, target, options: { projectDirectory: project, nodeExecutable: process.execPath, profileDirectory: flags['--profile-dir'], managedRoot: flags['--managed-root'] } }] });
+  const init = await rpc('init', { directory: temporary, authPath: path.join(temporary, 'auth.json'), plugins: [{ spec: target, target, options: { projectDirectory: project, nodeExecutable: process.execPath, profileDirectory: flags['--profile-dir'], managedRoot: flags['--managed-root'], mode: 'copy', allowWrites: false, autoSync: false } }] });
   const names = init.plugins?.[0]?.tools?.map(tool => tool.name) ?? [];
   assert(names.includes('claude_zh_manage'), 'This host does not expose tool hooks. Upgrade magpie before relying on tools.');
   const call = args => rpc('tool', { spec: target, name: 'claude_zh_manage', args, ms: 12000, agent: 'integration-test' });
   const detected = JSON.parse((await call({ action: 'detect' })).text);
   const status = JSON.parse((await call({ action: 'status' })).text);
-  await assert.rejects(call({ action: 'restore', confirm: 'restore' }), /Writes disabled/);
-  console.log(JSON.stringify({ hostTools: names, detected3p: detected.configured3p, provider: detected.provider, managedStatus: status.status, writesRefused: true, realSettingsModified: false }, null, 2));
+  // Never probe a write refusal by submitting a destructive action: host or
+  // plugin regressions must not turn this read-only check into a restore.
+  console.log(JSON.stringify({ hostTools: names, detected3p: detected.configured3p, provider: detected.provider, managedStatus: status.status, writesTested: false, realSettingsModified: false }, null, 2));
 } finally {
   child.stdin.end(); child.kill();
   for (const pair of waiting.values()) clearTimeout(pair.timer);

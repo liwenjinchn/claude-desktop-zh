@@ -4,17 +4,27 @@
   const valid = value => ['zh-Hans', 'zh-Hant'].includes(value);
   const current = valid(options.locale) ? options.locale : 'zh-Hans';
   const inputs = [...document.querySelectorAll('input[name="locale"]')];
+  const automatic = document.getElementById('runtime-auto');
+  automatic.checked = options.runtimeAutoLoad !== false;
   function render(value) {
     for (const input of inputs) input.checked = input.value === value;
-    document.getElementById('command').textContent = `node bin/claude-3p-zh.mjs switch --root "<managed-directory>" --locale ${value}`;
   }
   render(current);
   for (const input of inputs) input.addEventListener('change', () => render(input.value));
   document.getElementById('save').addEventListener('click', async () => {
     const locale = inputs.find(input => input.checked)?.value;
     if (!valid(locale)) return;
-    await magpie.options.set({ ...options, locale });
-    options.locale = locale;
-    document.getElementById('status').textContent = '偏好已保存。运行上面的命令才会应用到独立副本。';
+    const save = document.getElementById('save'), status = document.getElementById('status');
+    const enabled = automatic.checked;
+    save.disabled = true;
+    status.textContent = '正在保存…';
+    try {
+      await magpie.options.set({ ...options, locale, runtimeAutoLoad: enabled });
+      options.locale = locale;
+      options.runtimeAutoLoad = enabled;
+      status.textContent = enabled ? '已保存，下次打开 Claude 时生效。' : '已保存，自动加载已关闭。';
+    } catch {
+      status.textContent = '保存失败，请稍后重试。';
+    } finally { save.disabled = false; }
   });
 })();

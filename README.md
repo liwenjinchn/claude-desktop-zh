@@ -1,45 +1,39 @@
-# claude-desktop-3p-zh
+<img src="assets/logo.png" width="128" alt="橘发翻译员，手持译字气泡">
 
-为 Claude Desktop 的第三方网关模式启用官方简体、繁体中文。适用于 magpie、CC Switch 和手动 Gateway 配置。
+# claude-desktop-zh
 
-工具导入官方语言 JSON，匹配本地版本后修补语言注册与加载入口。默认创建独立副本，保留原安装和聊天数据。需要 Node.js 22+，无 npm 依赖。
+在 magpie 中安装插件，让 Claude Desktop 的第三方 Gateway 模式使用官方中文界面，继续使用原来的设置、会话和历史。
 
-## 开始使用
+![Claude 第三方模式的中文设置界面](docs/images/claude-settings-zh.png)
 
-在项目目录执行，替换尖括号内的路径：
+## 安装
 
-```powershell
-# 在普通模式加载一次所需语言，再导入官方缓存
-node bin/claude-3p-zh.mjs catalog cache --locale zh-Hans --cache '<Cache_Data目录>'
-# 繁体需要另外导入
-node bin/claude-3p-zh.mjs catalog cache --locale zh-Hant --cache '<Cache_Data目录>'
+准备好 Windows、magpie 和 Node.js 22 或以上版本，Claude 已配置为第三方 Gateway 模式。
 
-node bin/claude-3p-zh.mjs plan --source '<Claude应用目录>'
-node bin/claude-3p-zh.mjs prepare-copy --source '<Claude应用目录>' --destination '<新的副本目录>' --gateway-profile '<网关profile.json>'
-node bin/claude-3p-zh.mjs launch --root '<副本目录>'
-```
+1. 在 magpie 的插件页「发现 → 非官方插件 · GitHub」中搜索 **claude-desktop-zh**，点击安装。也可按 npm 包名 **magpie-claude-zh** 添加。
+2. 保持插件启用。默认简体中文。
+3. 如果 Claude 正在运行，通过 **File → Exit（文件 → 退出）** 正常退出。看到 Windows 的「中文已准备好」通知后，从原来的入口打开 Claude。
 
-默认简体，创建副本时加 `--locale zh-Hant` 可选择繁体。副本关闭后，可用 `switch --root '<副本目录>' --locale zh-Hant` 切换，或用 `restore --root '<副本目录>'` 恢复。**通过 CLI 的 `launch` 启动，不要直接双击副本 exe。**
+首次准备由插件自动完成。源码安装时，下载本项目并在 magpie 中添加项目根目录，保留文件夹所在位置。
 
-完整的路径说明、直接下载与手动导入、更新和恢复步骤见 [Windows 使用指南](docs/windows.md)。
+## 使用
 
-## 当前状态
+使用时保持 magpie 运行。每次打开 Claude，插件会自动加载中文；过程中可能短暂出现调试窗口和文件选择框，完成后自动收起。
 
-- **Windows**：在 `2.42304.0` 实测简繁主界面、独立副本启动、语言切换和恢复。未知前端结构停止修改。
-- **magpie**：设置页、宿主管理工具与可选自动语言同步；受宿主版本限制，见 [magpie 集成](docs/magpie.md)。
-- **macOS**：支持检测与补丁计划，尚未实测安装或签名，见 [macOS 边界](docs/macos.md)。
+在插件设置页选择语言并保存，下次打开 Claude 时生效。「启动时加载中文」开关控制后续启动是否加载。
 
-语言资源按匹配率和占位符兼容性选择，缺失消息回退英文。资源缓存在本地 `.catalogs/`，不随仓库分发 Claude 二进制或官方翻译。
+## 原理
 
-## 文档与开发
+翻译来自 Claude 官方中文语言文件。插件在每次 Claude 启动后运行本地脚本，将对应版本的中文资源加载到当前窗口内存，并切换语言。
 
-- [实施过程、本机环境与测试总结](docs/implementation-summary.md)
-- [详细验证记录](docs/validation.md)
-- [实现与恢复设计](docs/design.md)
+首次准备会备份应用设置，再开启自动加载所需的开发者工具选项。语言资源保存在本机，Claude 继续使用原来的数据目录。少量未匹配的文字沿用英文。
 
-```sh
-npm test
-node bin/claude-3p-zh.mjs help
-```
+## 说明
 
-项目代码为 MIT，官方资源权利归属见 [NOTICE](NOTICE)。当前为 `0.1.0` 原型；Windows 已实测，macOS 安装仍待验证。npm 包尚未发布。
+已在 Windows 商店版 Claude 2.42304.0 实测首次安装和简体自动加载。Claude 更新后需要重新检查语言资源是否兼容。
+
+- [安装步骤](docs/first-install.md)
+- [插件设置与常见问题](docs/magpie.md)
+- [开发与验证](https://github.com/polang233/claude-desktop-zh/blob/main/docs/README.md)
+
+项目代码采用 MIT 许可，官方语言资源的权利归其所有者，见 [NOTICE](NOTICE)。
