@@ -1,5 +1,15 @@
 # 开发交接
 
+## 2026-10-19 npm 0.1.0 已上线并完成下载验收
+
+最新发布结论：magpie-claude-zh@0.1.0已公开发布，latest=0.1.0，地址https://www.npmjs.com/package/magpie-claude-zh。使用独立npm11.21.0、browser=false发起发布，用户完成本次网页验证后，CLI退出0并返回+ magpie-claude-zh@0.1.0；registry短暂处理后版本可读。以下较早发布失败和等待记录为历史状态。
+
+通过：从registry读回name/version、repository、main/exports、中文description、设置页及117092字节内嵌图标，与冻结产物一致；从registry重新下载762988字节tarball，SHA256=30f603393160fc18169af5b45f2dccb6a0024a16bca38a5f9a60c40bca4d2264，SHA512 integrity与GitHub已发布包一致。使用新缓存按npm包名隔离安装，CLI、包内文件检查、控制器路径和默认zh-Hans通过。官方magpie源码host.js+Bun加载registry安装目录，3个工具及状态调用通过；自动加载关闭、零UI动作，宿主关闭stdin自然退出。
+
+私人证据：.handoff/release-20261019/npm-validation.json、host-validation-registry.json、registry-downloaded.tgz、registry-check。Node直接fetch遭遇本机TLS连接失败，验证脚本改用npm自身网络配置后完成；此为检查工具的联网问题，未改发布产物。原test/profile-reuse-real-app-20261018、HEAD89bb330及未提交成果继续保留，日常Claude和magpie配置未修改。
+
+未验证：真实magpie非官方列表卡片显示、从npm安装后原Claude新启动的GUI链路；当前通过的是公开topic索引、npm下载/安装与源码宿主加载，既有文件夹安装的首次准备和原入口中文实机结果继续见下文。日常安装切换为npm时，在magpie移除旧文件夹条目后再安装magpie-claude-zh，保留唯一注册记录。
+
 ## 2026-10-19 claude-desktop-zh 命名、npm 包与图标
 
 项目对外名称为 claude-desktop-zh，npm 包名 magpie-claude-zh，版本0.1.0。根目录现提供 magpie main/exports、设置页、简介、作者、repository、关键词和内嵌图标；原文件夹安装入口继续有效。控制器核对新包名，监听识别根目录、npm及该作者的GitHub安装，仍要求唯一启用记录、配置及注册哈希一致。现有状态目录、备份及provider标识沿用。项目当前目录、test/profile-reuse-real-app-20261018分支、HEAD89bb330及未提交内容保留。
@@ -11,6 +21,8 @@
 GitHub发布后，另以Bun1.4.2从公开github:polang233/claude-desktop-zh#v0.1.0实际下载并隔离安装，再由官方源码宿主加载，3个工具及默认简体通过，自动加载关闭且零UI动作；证据host-validation-github.json。日常magpie当前仍为原文件夹安装；换为npm前应在GUI移除原条目，再安装新包。监听会拒绝多个同源注册记录，停用但保留旧条目也应先移除；此处保留既有严格校验行为。
 
 发布进度：用户已明确授权GitHub仓库更名、默认分支发布和npm0.1.0发布。GitHub已更名为polang233/claude-desktop-zh，默认分支发布提交865eba7c40314c34f02b821d65954f74fa6b6194；远端提交、package.json、入口及图标blob哈希均读回一致。GitHub topic搜索返回本仓库1条，description与magpie-plugin topic正确。v0.1.0 Release已发布，包含tarball及SHA256SUMS；远端资产摘要与本地一致。用户随后确认npm已登录，实际whoami为polang233，冻结包哈希复核通过；首轮实际publish返回E403，发布验证未完成，已请用户按npm官方网页步骤完成账号验证后重试，同一版本尚未发布。不要重复请求发布授权或将“已登录”当作“已发布”。真实magpie列表图标已发起用户确认，不能将topic索引等同于窗口验收。
+
+用户已启用npm 2FA并先后确认两次发布网页验证完成，但两次CLI的done端点均未收到成功回执，最终返回E404，registry确认版本尚不存在；第二次日志为91次202、0次200，不将用户操作归为发布成功。两个发布进程均已退出。浏览器控制工具两次启动失败，未查看或操作验证页。已在.handoff/release-20261019/npm-client隔离安装兼容当前Node的npm11.21.0，并准备publish-npm.ps1，先校验冻结包SHA256，再由用户本机终端直接触发网页验证；只做过语法检查，尚待用户执行结果。无需改系统npm或创建新令牌。之后运行同目录check-registry.mjs，验证registry元数据、下载字节哈希、冷缓存按包名隔离安装及CLI，再用check-host.mjs检查registry-check的官方源码宿主加载。实际发布状态记录在私人npm-publish-attempt.json。
 
 独立发布检出位于.handoff/release-20261019/publish，分支release/magpie-claude-zh-0.1.0；78份文件从最新工作区逐字节复制并核对，凭据模式扫描0条发现。在无本机语言目录的独立检出再次全仓142项，141通过、0失败、1跳过。原工作区test/profile-reuse-real-app-20261018、HEAD89bb330及未提交成果保持，未切换或提交该分支。共用origin已更新为新仓库URL。
 

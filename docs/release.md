@@ -2,6 +2,8 @@
 
 项目：`claude-desktop-zh`。npm：`magpie-claude-zh`。首版：`0.1.0`。
 
+0.1.0 已发布至 [npm](https://www.npmjs.com/package/magpie-claude-zh) 和 [GitHub Releases](https://github.com/polang233/claude-desktop-zh/releases/tag/v0.1.0)。registry下载包与GitHub包的SHA256一致，按包名隔离安装及官方magpie源码宿主加载通过。真实magpie列表显示和npm安装后的Claude启动GUI另行验收。
+
 ## 发布内容
 
 根目录 `package.json` 提供 magpie 入口、设置页、简介和内嵌图标。npm 包包含 CLI、运行时脚本、Windows 适配器源码及使用文档。官方语言文件由插件在本机获取。
