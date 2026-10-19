@@ -10,7 +10,7 @@
 
 GitHub发布后，另以Bun1.4.2从公开github:polang233/claude-desktop-zh#v0.1.0实际下载并隔离安装，再由官方源码宿主加载，3个工具及默认简体通过，自动加载关闭且零UI动作；证据host-validation-github.json。日常magpie当前仍为原文件夹安装；换为npm前应在GUI移除原条目，再安装新包。监听会拒绝多个同源注册记录，停用但保留旧条目也应先移除；此处保留既有严格校验行为。
 
-发布进度：用户已明确授权GitHub仓库更名、默认分支发布和npm0.1.0发布，并将自行完成npm登录。GitHub已更名为polang233/claude-desktop-zh，默认分支发布提交865eba7c40314c34f02b821d65954f74fa6b6194；远端提交、package.json、入口及图标blob哈希均读回一致。GitHub topic搜索返回本仓库1条，description与magpie-plugin topic正确。v0.1.0 Release已发布，包含tarball及SHA256SUMS；远端资产摘要与本地一致。npm尚等待用户完成登录，尚未发布；真实magpie列表图标已发起用户确认，不能将topic索引等同于窗口验收。
+发布进度：用户已明确授权GitHub仓库更名、默认分支发布和npm0.1.0发布。GitHub已更名为polang233/claude-desktop-zh，默认分支发布提交865eba7c40314c34f02b821d65954f74fa6b6194；远端提交、package.json、入口及图标blob哈希均读回一致。GitHub topic搜索返回本仓库1条，description与magpie-plugin topic正确。v0.1.0 Release已发布，包含tarball及SHA256SUMS；远端资产摘要与本地一致。用户随后确认npm已登录，实际whoami为polang233，冻结包哈希复核通过；首轮实际publish返回E403，发布验证未完成，已请用户按npm官方网页步骤完成账号验证后重试，同一版本尚未发布。不要重复请求发布授权或将“已登录”当作“已发布”。真实magpie列表图标已发起用户确认，不能将topic索引等同于窗口验收。
 
 独立发布检出位于.handoff/release-20261019/publish，分支release/magpie-claude-zh-0.1.0；78份文件从最新工作区逐字节复制并核对，凭据模式扫描0条发现。在无本机语言目录的独立检出再次全仓142项，141通过、0失败、1跳过。原工作区test/profile-reuse-real-app-20261018、HEAD89bb330及未提交成果保持，未切换或提交该分支。共用origin已更新为新仓库URL。
 
