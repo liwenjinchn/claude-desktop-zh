@@ -8,9 +8,13 @@
 
 通过：全仓142项，141通过、0失败、1文件symlink夹具跳过；npm run check与git diff --check通过。新增真实tarball隔离安装回归，按npm包名导入、CLI、Windows适配器源码、页面路径及发布清单通过；npm安装和GitHub/root spec身份夹具通过。最终检查脚本输出调整后包回归再次通过。官方magpie源码host.js+Bun实际加载打包产物，3个工具、默认简体通过，自动加载关闭、零UI动作、宿主关闭stdin自然退出。Headless Edge 390/900px默认/保存、图标加载及无横向溢出通过，截图已检查；卡片为本地元数据预览。
 
-发布进度：用户已明确授权GitHub仓库更名、默认分支发布和npm0.1.0发布，并将自行完成npm登录。现有公开仓库polang233/claude-desktop-3p-zh已有magpie-plugin topic。正在准备独立发布检出，原工作区保留未提交状态。GitHub更名/推送、npm发布及列表可见性须以其后读回结果为准。npm安装后原入口新启动未重做GUI验收，沿用此前文件夹安装的首次安装/自动简体实机证据；不扩大为npm端到端已通过。本轮没有操作日常Claude窗口或profile。
+发布进度：用户已明确授权GitHub仓库更名、默认分支发布和npm0.1.0发布，并将自行完成npm登录。GitHub已更名为polang233/claude-desktop-zh，默认分支发布提交865eba7c40314c34f02b821d65954f74fa6b6194；远端提交、package.json、入口及图标blob哈希均读回一致。GitHub topic搜索返回本仓库1条，description与magpie-plugin topic正确。v0.1.0 Release已发布，包含tarball及SHA256SUMS；远端资产摘要与本地一致。npm尚等待用户完成登录，尚未发布；真实magpie列表图标已发起用户确认，不能将topic索引等同于窗口验收。
 
-私人打包、宿主及页面证据在.handoff/release-20261019。安装包为magpie-claude-zh-0.1.0.tgz，pack.json保存实际文件清单和完整性；发布时使用最终重打包报告。
+独立发布检出位于.handoff/release-20261019/publish，分支release/magpie-claude-zh-0.1.0；78份文件从最新工作区逐字节复制并核对，凭据模式扫描0条发现。在无本机语言目录的独立检出再次全仓142项，141通过、0失败、1跳过。原工作区test/profile-reuse-real-app-20261018、HEAD89bb330及未提交成果保持，未切换或提交该分支。共用origin已更新为新仓库URL。
+
+npm安装后原入口新启动未重做GUI验收，沿用此前文件夹安装的首次安装/自动简体实机证据；不扩大为npm端到端已通过。本轮没有操作日常Claude窗口或profile。
+
+私人打包、宿主及页面证据在.handoff/release-20261019。最终安装包magpie-claude-zh-0.1.0.tgz为762988字节、36文件，SHA256=30f603393160fc18169af5b45f2dccb6a0024a16bca38a5f9a60c40bca4d2264；pack.json及final-package.json保存最终文件清单与完整性。线上版本：https://github.com/polang233/claude-desktop-zh/releases/tag/v0.1.0。
 
 ## 2026-10-19 使用文档与插件设置页
 

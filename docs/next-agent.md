@@ -4,7 +4,7 @@
 
 项目名claude-desktop-zh，npm magpie-claude-zh@0.1.0。根目录已可加载magpie插件，设置页和卡片采用默认“译”字卡通娘图标，三款原图在docs/images，完整提示词在docs/logo-prompts.json。当前代码的npm隔离安装、官方源码宿主加载、390/900px页面检查通过；全仓142项，141通过、0失败、1symlink跳过，check与diff检查通过。
 
-用户已明确授权更名GitHub、将已验收代码发布到默认分支及发布npm，正在自行登录npm。保留原目录、test/profile-reuse-real-app-20261018及其未提交成果，以独立检出承载发布提交。发布和线上列表可见性以HANDOFF随后新增的读回记录为准；私人产物与报告位于.handoff/release-20261019。不要将隔离宿主加载称作npm安装后Claude GUI全链路验收。详细包结构与收录规则见release.md，旧首次安装实机证据继续有效。
+用户已明确授权更名GitHub、将已验收代码发布到默认分支及发布npm，正在自行登录npm。GitHub现为polang233/claude-desktop-zh，main已发布865eba7，v0.1.0 Release和安装包已上线，远端源码与资产哈希读回一致；topic搜索已命中本仓库。npm待登录后发布，真实magpie列表图标待用户确认。保留原目录、test/profile-reuse-real-app-20261018、HEAD89bb330及其未提交成果；发布提交位于独立检出.handoff/release-20261019/publish。私人产物与报告位于.handoff/release-20261019，最终tarball SHA256为30f603393160fc18169af5b45f2dccb6a0024a16bca38a5f9a60c40bca4d2264。不要将隔离宿主加载称作npm安装后Claude GUI全链路验收。详细包结构与收录规则见release.md，旧首次安装实机证据继续有效。
 
 ## 2026-10-19 使用文档与插件设置页
 
