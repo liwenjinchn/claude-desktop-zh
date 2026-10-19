@@ -1,5 +1,9 @@
 # 下一位 agent 交接：Claude Desktop 中文化与原数据保留
 
+## 2026-10-19 README 展示更新
+
+对外README补齐动态npm版本徽章、包名/链接、v0.1.0发布入口和反馈入口，安装优先按npm包名添加，说明旧文件夹条目切换。图片及用户文档采用完整GitHub地址；安装/常见问题文档同步。GitHub Markdown渲染及差异检查通过，npm版本读回0.1.0。仅文档更新，npm已发布包的README仍为发版时快照，后续版本同步；无需重复发布0.1.0。
+
 ## 2026-10-19 npm 已发布
 
 magpie-claude-zh@0.1.0已公开上线，latest=0.1.0。npm11.21.0此次网页验证成功，CLI退出0。registry元数据、图标及下载哈希与GitHub包一致；冷缓存按包名安装、CLI、默认简体及官方magpie源码宿主3个工具加载通过，零UI动作。私人结果见.handoff/release-20261019/npm-validation.json和host-validation-registry.json。以下npm等待和失败条目属于此前阶段，不再请求登录或重复发布0.1.0。

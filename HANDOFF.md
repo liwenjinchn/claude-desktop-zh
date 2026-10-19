@@ -1,5 +1,11 @@
 # 开发交接
 
+## 2026-10-19 对外 README 展示
+
+README新增npm动态版本徽章、Windows/Node/MIT信息、npm包链接、首版v0.1.0/全部版本/问题反馈入口。按npm包名安装为首步，说明默认简体、保持magpie运行及原入口打开；截图放在使用说明后，旧文件夹条目切换说明补入安装步骤。图片与用户文档均改完整GitHub地址，便于跨页面阅读。first-install与magpie常见问题同步包链接、版本查看和旧条目切换说明。
+
+验证：npm registry读回0.1.0；GitHub官方Markdown接口渲染通过，差异格式检查通过。此轮仅调整用户文档，未重跑应用或修改包版本。GitHub展示随文档提交更新；npm站内README仍为0.1.0发布时快照，将随后续版本同步。原测试分支及未提交成果继续保留。
+
 ## 2026-10-19 npm 0.1.0 已上线并完成下载验收
 
 最新发布结论：magpie-claude-zh@0.1.0已公开发布，latest=0.1.0，地址https://www.npmjs.com/package/magpie-claude-zh。使用独立npm11.21.0、browser=false发起发布，用户完成本次网页验证后，CLI退出0并返回+ magpie-claude-zh@0.1.0；registry短暂处理后版本可读。以下较早发布失败和等待记录为历史状态。

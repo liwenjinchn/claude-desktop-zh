@@ -10,6 +10,10 @@
 
 使用时保持 magpie 运行，Claude 从原来的入口打开即可。
 
+## 查看插件版本
+
+已安装版本在 magpie 的插件详情中查看，当前公开版本见 [npm](https://www.npmjs.com/package/magpie-claude-zh)，版本说明见 [GitHub Releases](https://github.com/polang233/claude-desktop-zh/releases)。反馈问题时，请附上插件版本、Claude 版本和加载状态。
+
 ## 没有出现准备完成通知
 
 先确认 Claude 已通过「文件 → 退出」完全退出。关闭窗口可能只是缩到托盘。Windows 通知也可能被系统通知设置隐藏。
