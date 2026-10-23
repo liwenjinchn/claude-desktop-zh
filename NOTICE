@@ -7,3 +7,6 @@ are not included in the source repository or the npm file list. Do not treat
 availability at a public URL as a license to redistribute those resources.
 Keep provenance when importing a catalog. No Claude executable or application
 bundle is distributed by this project.
+
+The JavaScript tokenizer in lib/vendor/js-tokens.mjs is js-tokens 10.0.0 by
+Simon Lydell. Its MIT license is included in lib/vendor/js-tokens.LICENSE.

@@ -33,6 +33,7 @@ public static class RuntimeConsoleBridge {
     static string pickerWindowClass="NotObserved",pickerForegroundKind="NotObserved";
     static int pickerIdentityBits;
     static bool scriptSubmitted;
+    static string devToolsOpenMethod="NotRequested";
     static Process lifetimeParent;
     static long lifetimeParentStarted;
     static string lifetimeParentExe,lifetimeRegistry,lifetimeRegistryHash;
@@ -276,6 +277,79 @@ public static class RuntimeConsoleBridge {
         for(int i=0;i<x.Length;i++)if(x[i]!=y[i])return false;
         return true;
     }
+    public static bool FrontendDocument(string value,int actualPid,int expectedPid,bool enabled,bool visible) {
+        Uri uri;
+        return actualPid==expectedPid && enabled && visible && Uri.TryCreate(value,UriKind.Absolute,out uri)
+            && uri.Scheme=="app" && uri.Host=="localhost" && uri.IsDefaultPort && uri.UserInfo.Length==0;
+    }
+    static bool FocusInside(AutomationElement document,AutomationElement focused,int pid) {
+        for(int depth=0;focused!=null && depth<64;depth++) {
+            if(focused.Current.ProcessId!=pid)return false;
+            if(Same(document,focused))return true;
+            focused=TreeWalker.ControlViewWalker.GetParent(focused);
+        }
+        return false;
+    }
+    static string FocusFrontend(Process process,string exe,long started,IntPtr handle,int timeout) {
+        var clock=Stopwatch.StartNew();
+        while(clock.ElapsedMilliseconds<timeout) {
+            if(!Identity(process,exe,started))return "ApplicationExited";
+            if(GetForegroundWindow()!=handle)return "FocusChanged";
+            focusStage="FrontendReady";
+            var documents=new List<AutomationElement>();
+            try {
+                var root=AutomationElement.FromHandle(handle);
+                foreach(AutomationElement document in root.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Document))) {
+                    object value;
+                    if(document.TryGetCurrentPattern(ValuePattern.Pattern,out value)
+                        && FrontendDocument(((ValuePattern)value).Current.Value,document.Current.ProcessId,process.Id,document.Current.IsEnabled,!document.Current.IsOffscreen))documents.Add(document);
+                }
+                if(documents.Count>1)return "AmbiguousFrontend";
+                if(documents.Count==1) {
+                    if(!Identity(process,exe,started) || GetForegroundWindow()!=handle)return "FocusChanged";
+                    focusStage="FrontendFocus";
+                    documents[0].SetFocus();
+                    if(FocusInside(documents[0],AutomationElement.FocusedElement,process.Id))return null;
+                }
+            } catch(ElementNotAvailableException) { /* The initial renderer can be replaced while loading. */ }
+            Thread.Sleep(100);
+        }
+        return "FrontendFocusNotVerified";
+    }
+    public static bool DevToolsMenuName(int stage,string name) {
+        if(stage==0)return name=="Menu" || name=="菜单" || name=="選單";
+        if(stage==1)return name=="Developer" || name=="开发者" || name=="開發者";
+        return stage==2 && (name=="Show Dev Tools" || name=="显示开发者工具" || name=="显示开发工具" || name=="顯示開發者工具" || name=="顯示開發人員工具");
+    }
+    static string OpenDevToolsMenuStage(Process process,string exe,long started,IntPtr handle,int stage) {
+        var clock=Stopwatch.StartNew();
+        while(clock.ElapsedMilliseconds<5000) {
+            if(!Identity(process,exe,started))return "ApplicationExited";
+            if(Tools(process.Id).Count>0)return null;
+            if(GetForegroundWindow()!=handle)return "FocusChanged";
+            var matches=new List<AutomationElement>();
+            try {
+                var root=AutomationElement.FromHandle(handle);
+                var type=stage==0?ControlType.Button:ControlType.MenuItem;
+                foreach(AutomationElement item in root.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,type)))
+                    if(item.Current.ProcessId==process.Id && item.Current.IsEnabled && !item.Current.IsOffscreen && DevToolsMenuName(stage,item.Current.Name))matches.Add(item);
+                if(matches.Count>1)return "AmbiguousDevToolsMenu";
+                if(matches.Count==1) {
+                    if(!Identity(process,exe,started) || GetForegroundWindow()!=handle)return "FocusChanged";
+                    if(Tools(process.Id).Count>0)return null;
+                    object pattern;
+                    focusStage="DevToolsMenu"+stage;
+                    if(stage==1 && matches[0].TryGetCurrentPattern(ExpandCollapsePattern.Pattern,out pattern)) {
+                        ((ExpandCollapsePattern)pattern).Expand(); return null;
+                    }
+                    if(!matches[0].TryGetCurrentPattern(InvokePattern.Pattern,out pattern))return "DevToolsMenuNotInvokable";
+                    ((InvokePattern)pattern).Invoke(); return null;
+                }
+            } catch(ElementNotAvailableException) { /* Native menus are created asynchronously. */ }
+            Thread.Sleep(100);
+        }
+        return "DevToolsMenuNotAvailable";
+    }
     static bool ProcessIdentity(Process process,string exe,long started) {
         try { process.Refresh(); return !process.HasExited && process.StartTime.ToUniversalTime().Ticks==started
             && String.Equals(Path.GetFullPath(process.MainModule.FileName),exe,StringComparison.OrdinalIgnoreCase); }
@@ -376,17 +450,30 @@ public static class RuntimeConsoleBridge {
         var existing=Tools(pid);
         if(existing.Count>1)return "AmbiguousDevTools";
         bool opened=existing.Count==0;
+        devToolsOpenMethod=opened?"Shortcut":"ExistingWindow";
         if(opened) {
             if(Regex.IsMatch(Title(foreground),@"^(?:DevTools|Developer Tools) - ",RegexOptions.IgnoreCase))return "WrongDevToolsOrigin";
+            if(GetForegroundWindow()!=foreground || !Identity(process,exe,started))return "FocusChanged";
+            string focusFailure=FocusFrontend(process,exe,started,foreground,timeout);
+            if(focusFailure!=null)return focusFailure;
             if(GetForegroundWindow()!=foreground || !Identity(process,exe,started))return "FocusChanged";
             Keys(new ushort[]{0x11,0x12,0x49});
         }
         var clock=Stopwatch.StartNew();
         List<IntPtr> tools=existing;
+        bool menuAttempted=false;
         while(tools.Count==0 && clock.ElapsedMilliseconds<timeout) {
             Thread.Sleep(150); if(!Identity(process,exe,started))return "ApplicationExited";
             if(Pid(GetForegroundWindow())!=pid)return "FocusChanged";
             tools=Tools(pid);
+            if(tools.Count==0 && !menuAttempted && clock.ElapsedMilliseconds>=3000) {
+                menuAttempted=true; devToolsOpenMethod="Menu";
+                for(int stage=0;stage<3;stage++) {
+                    string failure=OpenDevToolsMenuStage(process,exe,started,foreground,stage);
+                    if(failure!=null)return failure;
+                }
+                tools=Tools(pid);
+            }
         }
         if(tools.Count!=1)return tools.Count==0?"DevToolsNotAvailable":"AmbiguousDevTools";
         IntPtr handle=tools[0];
@@ -471,10 +558,29 @@ public static class RuntimeConsoleBridge {
         var valueClock=Stopwatch.StartNew();
         bool verified=false;
         while(valueClock.ElapsedMilliseconds<5000) {
-            focusStage="ValueReadback"; foregroundIsDevTools=GetForegroundWindow()==handle; promptHasFocus=Same(prompt,AutomationElement.FocusedElement);
-            if(!Identity(process,exe,started) || Pid(GetForegroundWindow())!=pid || !promptHasFocus)return "FocusChangedBeforeExecute";
-            string written=value.Current.Value; writtenValueLength=written.Length;
-            if(EditorMatches(written,script)) { verified=true; break; }
+            focusStage="ValueReadback"; foregroundIsDevTools=GetForegroundWindow()==handle;
+            if(!Identity(process,exe,started) || !foregroundIsDevTools)return "FocusChangedBeforeExecute";
+            // Chromium can replace its editor accessibility node after SetValue.
+            // Resolve the unique current prompt without writing or moving focus;
+            // require both exact payload readback and focus on that current node.
+            try {
+                AutomationElement current=null;
+                foreach(AutomationElement edit in root.FindAll(TreeScope.Descendants,new PropertyCondition(AutomationElement.ControlTypeProperty,ControlType.Edit))) {
+                    if(!ConsolePrompt(edit.Current.Name))continue;
+                    if(current!=null)return "AmbiguousConsolePrompt";
+                    current=edit;
+                }
+                object currentValue;
+                if(current!=null && current.Current.ProcessId==pid && current.Current.IsEnabled && !current.Current.IsOffscreen
+                    && current.TryGetCurrentPattern(ValuePattern.Pattern,out currentValue)) {
+                    var observed=(ValuePattern)currentValue;
+                    string written=observed.Current.Value; writtenValueLength=written.Length;
+                    promptHasFocus=Same(current,AutomationElement.FocusedElement);
+                    if(!observed.Current.IsReadOnly && EditorMatches(written,script) && promptHasFocus) {
+                        prompt=current; value=observed; verified=true; break;
+                    }
+                }
+            } catch(ElementNotAvailableException) { /* Wait for the replacement node. */ }
             Thread.Sleep(100);
         }
         if(!verified)return "ConsoleValueNotVerified";
@@ -492,10 +598,20 @@ public static class RuntimeConsoleBridge {
             if(failure!=null)return failure;
         }
         clock.Restart();
+        bool focusAfterPicker=catalog==null;
         while(clock.ElapsedMilliseconds<timeout) {
             if(!Identity(process,exe,started))return "ApplicationExited";
             bool acknowledged=false;
             if(!IsWindowVisible(handle) || !DevToolsTarget(Title(handle),(int)Pid(handle),pid))return "DevToolsClosedBeforeAcknowledgement";
+            // A file dialog owned by the main window can return focus there.
+            // Bring this exact DevTools window back only while Claude retains
+            // foreground ownership, after its file dialog has disappeared.
+            if(!focusAfterPicker && FileDialogs(process,exe,started).Count==0 && Pid(GetForegroundWindow())==pid) {
+                if(!Identity(process,exe,started))return "ApplicationExited";
+                focusStage="AcknowledgementFocus";
+                SetForegroundWindow(handle);
+                focusAfterPicker=GetForegroundWindow()==handle;
+            }
             try { root=AutomationElement.FromHandle(handle); acknowledged=Acknowledged(root,marker); }
             catch(ElementNotAvailableException) { Thread.Sleep(200); continue; }
             if(acknowledged) {
@@ -510,6 +626,24 @@ public static class RuntimeConsoleBridge {
     }
     static void Require(bool condition) { if(!condition)throw new Exception("SelfTestFailed"); }
     static void SelfTest(int expectedParent=0) {
+        Require(DevToolsMenuName(0,"Menu"));
+        Require(DevToolsMenuName(0,"菜单"));
+        Require(DevToolsMenuName(1,"Developer"));
+        Require(DevToolsMenuName(1,"开发者"));
+        Require(DevToolsMenuName(2,"Show Dev Tools"));
+        Require(!DevToolsMenuName(2,"Show All Dev Tools"));
+        Require(!DevToolsMenuName(2,"Enable Main Process Debugger"));
+        Require(!DevToolsMenuName(2,"Show Dev Tools for another app"));
+        Require(!DevToolsMenuName(0,"New"));
+        Require(!DevToolsMenuName(1,"Help"));
+        Require(FrontendDocument("app://localhost/epitaxy?coldLaunch=1",5,5,true,true));
+        Require(!FrontendDocument("app://localhost.evil/epitaxy",5,5,true,true));
+        Require(!FrontendDocument("https://localhost/epitaxy",5,5,true,true));
+        Require(!FrontendDocument("app://user@localhost/epitaxy",5,5,true,true));
+        Require(!FrontendDocument("app://localhost:1234/epitaxy",5,5,true,true));
+        Require(!FrontendDocument("app://localhost/epitaxy",6,5,true,true));
+        Require(!FrontendDocument("app://localhost/epitaxy",5,5,false,true));
+        Require(!FrontendDocument("app://localhost/epitaxy",5,5,true,false));
         Require(DevToolsTarget("DevTools - app://localhost/new",5,5));
         Require(!DevToolsTarget("Claude",5,5));
         Require(!DevToolsTarget("DevTools - app://localhost.evil/new",5,5));
@@ -588,11 +722,11 @@ public static class RuntimeConsoleBridge {
         Require(expectedParent==0?ParentId(Process.GetCurrentProcess().Id)>0:ParentId(Process.GetCurrentProcess().Id)==expectedParent);
     }
     static void Emit(string state,string errorKind) {
-            Console.WriteLine("{\"state\":\""+state+"\",\"errorKind\":\""+errorKind+"\",\"scriptSubmitted\":"+scriptSubmitted.ToString().ToLowerInvariant()+",\"pickerIdentityBits\":"+pickerIdentityBits+",\"pickerForegroundPid\":"+pickerForegroundPid+",\"pickerOwnerPid\":"+pickerOwnerPid+",\"pickerZeroForegroundSamples\":"+pickerZeroForegroundSamples+",\"pickerWindowClass\":\""+pickerWindowClass+"\",\"pickerForegroundKind\":\""+pickerForegroundKind+"\",\"promptProcessId\":"+promptProcessId+",\"focusedProcessId\":"+focusedProcessId+",\"focusedNameIsPrompt\":"+focusedNameIsPrompt.ToString().ToLowerInvariant()+",\"activationRequested\":"+activationRequested.ToString().ToLowerInvariant()+",\"foregroundKind\":\""+foregroundKind+"\",\"observedForegroundPid\":"+observedForegroundPid+",\"applicationPid\":"+targetPid+",\"applicationStartTicks\":\""+targetStarted+"\",\"uiNodes\":"+uiNodes+",\"tabItems\":"+tabItems+",\"editInputs\":"+editInputs+",\"consoleLabels\":"+consoleLabels+",\"promptReadOnly\":"+promptReadOnly.ToString().ToLowerInvariant()+",\"promptValueLength\":"+promptValueLength+",\"promptValueShape\":\""+promptValueShape+"\",\"writtenValueLength\":"+writtenValueLength+",\"resumedOwnPayload\":"+resumedOwnPayload.ToString().ToLowerInvariant()+",\"catalogDialogState\":\""+catalogDialogState+"\",\"filenameCandidates\":"+filenameCandidates+",\"openCandidates\":"+openCandidates+",\"focusStage\":\""+focusStage+"\",\"foregroundIsDevTools\":"+foregroundIsDevTools.ToString().ToLowerInvariant()+",\"promptHasFocus\":"+promptHasFocus.ToString().ToLowerInvariant()+"}");
+            Console.WriteLine("{\"devToolsOpenMethod\":\""+devToolsOpenMethod+"\",\"state\":\""+state+"\",\"errorKind\":\""+errorKind+"\",\"scriptSubmitted\":"+scriptSubmitted.ToString().ToLowerInvariant()+",\"pickerIdentityBits\":"+pickerIdentityBits+",\"pickerForegroundPid\":"+pickerForegroundPid+",\"pickerOwnerPid\":"+pickerOwnerPid+",\"pickerZeroForegroundSamples\":"+pickerZeroForegroundSamples+",\"pickerWindowClass\":\""+pickerWindowClass+"\",\"pickerForegroundKind\":\""+pickerForegroundKind+"\",\"promptProcessId\":"+promptProcessId+",\"focusedProcessId\":"+focusedProcessId+",\"focusedNameIsPrompt\":"+focusedNameIsPrompt.ToString().ToLowerInvariant()+",\"activationRequested\":"+activationRequested.ToString().ToLowerInvariant()+",\"foregroundKind\":\""+foregroundKind+"\",\"observedForegroundPid\":"+observedForegroundPid+",\"applicationPid\":"+targetPid+",\"applicationStartTicks\":\""+targetStarted+"\",\"uiNodes\":"+uiNodes+",\"tabItems\":"+tabItems+",\"editInputs\":"+editInputs+",\"consoleLabels\":"+consoleLabels+",\"promptReadOnly\":"+promptReadOnly.ToString().ToLowerInvariant()+",\"promptValueLength\":"+promptValueLength+",\"promptValueShape\":\""+promptValueShape+"\",\"writtenValueLength\":"+writtenValueLength+",\"resumedOwnPayload\":"+resumedOwnPayload.ToString().ToLowerInvariant()+",\"catalogDialogState\":\""+catalogDialogState+"\",\"filenameCandidates\":"+filenameCandidates+",\"openCandidates\":"+openCandidates+",\"focusStage\":\""+focusStage+"\",\"foregroundIsDevTools\":"+foregroundIsDevTools.ToString().ToLowerInvariant()+",\"promptHasFocus\":"+promptHasFocus.ToString().ToLowerInvariant()+"}");
     }
     [STAThread] public static int Main(string[] args) {
         try {
-            if((args.Length==1 || args.Length==2) && args[0]=="--self-test") { SelfTest(args.Length==2?Int32.Parse(args[1]):0); Console.WriteLine("{\"state\":\"SelfTestPassed\",\"cases\":72,\"uiActions\":0}"); return 0; }
+            if((args.Length==1 || args.Length==2) && args[0]=="--self-test") { SelfTest(args.Length==2?Int32.Parse(args[1]):0); Console.WriteLine("{\"state\":\"SelfTestPassed\",\"cases\":90,\"uiActions\":0}"); return 0; }
             bool activateClaude=args.Length>0 && args[args.Length-1]=="--activate-claude";
             if(activateClaude)Array.Resize(ref args,args.Length-1);
             if(args.Length>=3 && args[args.Length-3]=="--registry") {

@@ -99,7 +99,7 @@ function Invoke-Adapter {
   foreach ($count in @('uiNodes','tabItems','editInputs','consoleLabels','promptValueLength','writtenValueLength','filenameCandidates','openCandidates','observedForegroundPid','promptProcessId','focusedProcessId','pickerForegroundPid','pickerOwnerPid','pickerZeroForegroundSamples','pickerIdentityBits')) {
     if ($null -ne $result.$count) { $event[$count]=[int]$result.$count }
   }
-  foreach ($field in @('promptReadOnly','promptValueShape','resumedOwnPayload','catalogDialogState','focusStage','foregroundIsDevTools','promptHasFocus','activationRequested','foregroundKind','focusedNameIsPrompt','pickerWindowClass','pickerForegroundKind','scriptSubmitted','errorKind')) {
+  foreach ($field in @('promptReadOnly','promptValueShape','resumedOwnPayload','catalogDialogState','focusStage','foregroundIsDevTools','promptHasFocus','activationRequested','foregroundKind','focusedNameIsPrompt','pickerWindowClass','pickerForegroundKind','scriptSubmitted','errorKind','devToolsOpenMethod')) {
     if ($null -ne $result.$field) { $event[$field]=$result.$field }
   }
   $report.events+=@($event)

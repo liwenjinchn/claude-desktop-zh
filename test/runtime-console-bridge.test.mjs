@@ -26,7 +26,7 @@ test('Windows adapter compiles and refuses decoy UI targets in self-test without
   assert.equal(report.uiAttempted, false);
   const saved = JSON.parse(fs.readFileSync(report.report, 'utf8').replace(/^\uFEFF/, ''));
   assert.equal(saved.selfTest.state, 'SelfTestPassed');
-  assert.equal(saved.selfTest.cases, 72);
+  assert.equal(saved.selfTest.cases, 90);
   assert.equal(saved.selfTest.uiActions, 0);
   assert.deepEqual(saved.events, []);
 });

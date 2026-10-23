@@ -10,7 +10,7 @@ import { discover, discoverInstall, discoverProfiles, discoverCaches, defaultLay
 import { buildRuntimeLocalization } from '../scripts/build-runtime-localization.mjs';
 import { runtimeSetupStatus, setupRuntime, restoreRuntimeSetup, windowsSetupGuard } from '../lib/runtime-setup.mjs';
 
-const help = `claude-desktop-zh 0.1.0 (Node 22+)
+const help = `claude-desktop-zh ${readJSON(new URL('../package.json', import.meta.url)).version} (Node 22+)
 
 discover
 original-check   [--source <app>]

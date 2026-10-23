@@ -20,7 +20,8 @@ test('published tarball installs and loads by package name with its runtime and 
   const files = packed.files.map(file => file.path);
   for (const required of ['integrations/magpie/server.mjs', 'integrations/magpie/page/index.html',
     'integrations/magpie/page/icon.png', 'integrations/windows-runtime/RuntimeConsoleBridge.cs',
-    'scripts/test-runtime-autoload.ps1', 'scripts/build-runtime-localization.mjs', 'assets/logo.png']) {
+    'scripts/test-runtime-autoload.ps1', 'scripts/build-runtime-localization.mjs', 'assets/logo.png',
+    'lib/module-exports.mjs', 'lib/vendor/js-tokens.mjs', 'lib/vendor/js-tokens.LICENSE']) {
     assert(files.includes(required), 'Missing runtime asset: ' + required);
   }
   assert(!files.some(file => /^(?:\.handoff|\.catalogs|node_modules|test)\//.test(file)));
@@ -31,7 +32,8 @@ test('published tarball installs and loads by package name with its runtime and 
   npm('install', '--prefix', staging, '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', path.join(root, packed.filename));
   const installed = path.join(staging, 'node_modules/magpie-claude-zh');
   const run = file => execFileSync(process.execPath, [file, 'help'], { cwd: staging, encoding: 'utf8', windowsHide: true });
-  assert.match(run(path.join(installed, 'bin/claude-3p-zh.mjs')), /^claude-desktop-zh 0\.1\.0/);
+  const version = JSON.parse(fs.readFileSync(path.join(project, 'package.json'))).version;
+  assert(run(path.join(installed, 'bin/claude-3p-zh.mjs')).startsWith('claude-desktop-zh ' + version + ' '));
   run(path.join(installed, 'scripts/check-package.mjs'));
   const smoke = path.join(staging, 'smoke.mjs');
   fs.writeFileSync(smoke, `

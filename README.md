@@ -11,7 +11,7 @@
 
 默认简体中文。使用时保持 magpie 运行，从原来的 Claude 入口打开即可。
 
-**npm 包：[`magpie-claude-zh`](https://www.npmjs.com/package/magpie-claude-zh)** · [首版 v0.1.0](https://github.com/polang233/claude-desktop-zh/releases/tag/v0.1.0) · [全部版本](https://github.com/polang233/claude-desktop-zh/releases) · [反馈问题](https://github.com/polang233/claude-desktop-zh/issues)
+**npm 包：[`magpie-claude-zh`](https://www.npmjs.com/package/magpie-claude-zh)** · [v0.1.1](https://github.com/polang233/claude-desktop-zh/releases/tag/v0.1.1) · [全部版本](https://github.com/polang233/claude-desktop-zh/releases) · [反馈问题](https://github.com/polang233/claude-desktop-zh/issues)
 
 ## 安装
 
@@ -41,7 +41,7 @@
 
 ## 说明
 
-已在 Windows 商店版 Claude 2.42304.0 实测首次安装和简体自动加载。Claude 更新后需要重新检查语言资源是否兼容。
+已在 Windows 商店版 Claude 3.1623.1.0 与 magpie 0.1.1340 实测原入口启动后自动加载简体中文。首次安装流程此前已在 Claude 2.42304.0 通过。Claude 更新后需要重新检查语言资源是否兼容。
 
 - [安装步骤](https://github.com/polang233/claude-desktop-zh/blob/main/docs/first-install.md)
 - [插件设置与常见问题](https://github.com/polang233/claude-desktop-zh/blob/main/docs/magpie.md)

@@ -55,6 +55,82 @@ test('runtime builder emits pinned data and manual picker without modifying appl
   new vm.Script(fs.readFileSync(result.pickerOutput, 'utf8'));
 });
 
+test('runtime builder resolves the local store export when an earlier import uses the same source name', async t => {
+  const f = fixture(t), output = path.join(f.root, 'experiment.js');
+  const moduleURL = code => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
+  const dependency = moduleURL('export const $State = () => false;');
+  const factory = 'function make(init){let state;const store={getState:()=>state,setState:patch=>Object.assign(state,patch)};state=init(store.setState,store.getState);return store;}';
+  const runtime = `import{$State as Wrong}from ${JSON.stringify(dependency)};` + factory +
+    f.runtime.replace('gates:[]', 'gates:[],setLocaleOverride:locale=>e({localeOverride:locale})') + 'export{Wrong};';
+  fs.writeFileSync(path.join(f.assets, 'runtime.js'), runtime);
+  const result = buildRuntimeLocalization(f.source, f.catalogs, 'zh-Hans', output);
+  const spec = JSON.parse(fs.readFileSync(result.specOutput));
+  const namespace = await import(moduleURL(runtime));
+  assert.equal(typeof namespace.Wrong, 'function');
+  assert.equal(namespace.Wrong.getState, undefined);
+  const store = namespace[spec.storeExport];
+  assert.equal(typeof store.getState, 'function');
+  assert.equal(typeof store.setState, 'function');
+  store.getState().setLocaleOverride(spec.locale);
+  assert.equal(store.getState().localeOverride, 'zh-Hans');
+  assert.equal(spec.runtimeSha256, sha256(Buffer.from(runtime)));
+  const manifest = JSON.parse(fs.readFileSync(result.automationManifest));
+  assert.equal(manifest.catalogSha256, sha256(fs.readFileSync(result.specOutput)));
+  assert.equal(manifest.payloadSha256, sha256(fs.readFileSync(manifest.payload)));
+  assert.equal(fs.readFileSync(path.join(f.assets, 'runtime.js'), 'utf8'), runtime);
+});
+
+test('runtime builder handles whitespace, comments, multiple export blocks and external re-exports', t => {
+  const f = fixture(t), output = path.join(f.root, 'experiment.js');
+  const runtime = 'export{$State as Wrong}from"./other.js";const other=1,last=2;' +
+    f.runtime.replace('export{$State as $Public};', 'export /* own */ {other as Other,\n$State /* local */ as /* alias */ qf,\n};export{last as Last};') +
+    'export{$State as AlsoWrong}from"./another.js";';
+  fs.writeFileSync(path.join(f.assets, 'runtime.js'), runtime);
+  const result = buildRuntimeLocalization(f.source, f.catalogs, 'zh-Hans', output);
+  assert.equal(JSON.parse(fs.readFileSync(result.specOutput)).storeExport, 'qf');
+});
+
+test('runtime builder ignores export-like text in literals, comments and template interpolations', t => {
+  const f = fixture(t), output = path.join(f.root, 'experiment.js');
+  const decoys = [
+    '// export{$State as Wrong};',
+    '/* export{$State as Wrong}; */',
+    'const quoted=";export{$State as Wrong};";',
+    "const single=';export{$State as Wrong};';",
+    'const template=`export{$State as Wrong};${(()=>({value:"export{$State as Wrong}"}))()}tail`;',
+    'const nested=`${`export{$State as Wrong};${1}`}tail`;',
+    'const regex=/export\\{\\$State as Wrong\\}/;',
+    'if(false)/[{}]/.test("");',
+  ].join('\n') + '\n';
+  fs.writeFileSync(path.join(f.assets, 'runtime.js'), decoys + f.runtime + '\nconst trailing=`export{$State as Wrong};`;');
+  const result = buildRuntimeLocalization(f.source, f.catalogs, 'zh-Hans', output);
+  assert.equal(JSON.parse(fs.readFileSync(result.specOutput)).storeExport, '$Public');
+});
+
+test('runtime builder accepts an unaliased local named export', t => {
+  const f = fixture(t), output = path.join(f.root, 'experiment.js');
+  fs.writeFileSync(path.join(f.assets, 'runtime.js'), f.runtime.replace('export{$State as $Public};', 'export{$State};'));
+  const result = buildRuntimeLocalization(f.source, f.catalogs, 'zh-Hans', output);
+  assert.equal(JSON.parse(fs.readFileSync(result.specOutput)).storeExport, '$State');
+});
+
+test('missing, ambiguous and external-only store exports refuse every generated artifact', async t => {
+  const cases = [
+    ['missing', 'export{other as Other};'],
+    ['external-only', 'export{$State as Wrong}from"./other.js";'],
+    ['ambiguous', 'export{$State as First,$State as Second};'],
+    ['separate aliases', 'export{$State as First};export{$State as Second};'],
+  ];
+  for (const [name, exports] of cases) await t.test(name, t => {
+    const f = fixture(t), output = path.join(f.root, 'experiment.js');
+    fs.writeFileSync(path.join(f.assets, 'runtime.js'), 'const other=1;' + f.runtime.replace('export{$State as $Public};', exports));
+    assert.throws(() => buildRuntimeLocalization(f.source, f.catalogs, 'zh-Hans', output), /Unsupported language-store export/);
+    for (const suffix of ['', '.spec.json', '.picker.js', '.automation.js', '.automation.json']) {
+      assert.equal(fs.existsSync(output + suffix), false);
+    }
+  });
+});
+
 test('small automation picker validates data before acknowledging and refuses changed or cancelled files', async () => {
   const data=Buffer.from(JSON.stringify({locale:'zh-Hans',runtimeUrl:'/runtime.js',runtimeSha256:'0'.repeat(64)}));
   const marker='CLAUDE_ZH_APPLIED_'+'b'.repeat(32);

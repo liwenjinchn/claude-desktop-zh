@@ -21,6 +21,7 @@ assert.equal(folder.magpie.icon, pkg.magpie.icon);
 assert(icon.equals(fs.readFileSync(path.join(root, 'integrations/magpie/page/icon.png'))));
 for (const file of [pkg.main, pkg.magpie.page.file, pkg.magpie.page.icon,
   'bin/claude-3p-zh.mjs', 'scripts/build-runtime-localization.mjs',
+  'lib/module-exports.mjs', 'lib/vendor/js-tokens.mjs', 'lib/vendor/js-tokens.LICENSE',
   'scripts/test-runtime-autoload.ps1', 'integrations/windows-runtime/RuntimeConsoleBridge.cs']) {
   assert(fs.statSync(path.join(root, file)).isFile(), 'Missing package file: ' + file);
 }

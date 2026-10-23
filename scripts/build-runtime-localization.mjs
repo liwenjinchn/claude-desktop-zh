@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { sha256, localeValue } from '../lib/common.mjs';
 import { discoverPatchTargets } from '../lib/patch.mjs';
 import { plan } from '../lib/install.mjs';
+import { localNamedExport } from '../lib/module-exports.mjs';
 
 // Serialized into the generated snippet; keep this function self-contained.
 export async function activateRuntimeCatalog(spec, expectedOrigin = 'app://localhost') {
@@ -83,10 +84,9 @@ export function runtimeSpec(source, catalogDirectory, locale) {
   const prepared = plan(source, catalogDirectory, locale);
   const runtime = discoverPatchTargets(prepared.application.resources).runtime;
   if (sha256(Buffer.from(runtime.text)) !== prepared.sourceHashes[runtime.relative]) throw new Error('Language runtime changed during planning.');
-  const symbol = runtime.text.match(/var ([$\w]+)=[$\w]+\(\(e,t\)=>\(\{messages:\{\},messagesLocale:null,gates:\[\]/)?.[1];
-  const escaped = symbol?.replaceAll('$', '\\$');
-  const storeExport = escaped && runtime.text.match(new RegExp('(?:[,{])' + escaped + ' as ([$\\w]+)(?:[,}])'))?.[1];
-  if (!storeExport) throw new Error('Unsupported language-store export. No snippet generated.');
+  const stores = [...runtime.text.matchAll(/var ([$\w]+)=[$\w]+\(\(e,t\)=>\(\{messages:\{\},messagesLocale:null,gates:\[\]/g)];
+  if (stores.length !== 1) throw new Error('Unsupported language-store export. No snippet generated.');
+  const storeExport = localNamedExport(runtime.text, stores[0][1]);
   const catalogs = prepared.catalogs[locale];
   return {
     locale, runtimeUrl: '/' + runtime.relative.replaceAll('\\', '/').replace(/^ion-dist\//, ''),
