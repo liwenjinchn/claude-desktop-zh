@@ -1,5 +1,18 @@
 # 开发交接
 
+## 2026-10-28 macOS 运行时中文实机通过（一键命令已验收）
+
+本机 macOS 27.2、Claude Desktop 3.6556.2、第三方 Gateway 模式（`Claude-3p`，`allowDevTools=true`），magpie 0.1.1609；npm 插件 0.1.1 本身仍是 Windows-only。官方中文目录通过本机浏览器取得并导入（`catalog fetch` 被 Cloudflare 403 拦截）：基础 39,521 键中命中 36,304/37,201（97.59%，3 个占位符不兼容回退英文），动态 49/49；目录保存在忽略的 `.catalogs` 及 `~/Library/Application Support/claude-desktop-zh/catalogs`。
+
+真机手动路径已通过：Claude 的 `Developer → Enable Main Process Debugger` 打开本地 Node inspector（127.0.0.1:9229），主进程调用 `webContents.executeJavaScript` 只向 `app://localhost` 页面注入官方目录，页面状态为 `locale/messagesLocale=zh-Hans`、`catalogRequestsServed=2`、`restored=false`；截图确认「新建/例程/自定义/更多/已置顶/环境/上下文/连接器」等界面已中文。未修改 `Claude.app`/`app.asar`、未重签、未改 Gateway、SIP、Gatekeeper、Keychain 或 profile 配置；inspector 用 `node:inspector.close()` 关闭。没有执行任何聊天/Cowork 任务，报告不含页面标题或正文。
+
+新增 `lib/runtime-localization.mjs`（从 scripts 抽出，单一实现）、`lib/macos.mjs`（应用/进程/profile 发现、菜单自动化、CDP、注入/恢复、状态）、CLI `mac-apply`/`mac-restore`/`mac-status`、macOS discover/defaultLayout/runtime-setup 守卫、magpie controller/工具/workbench/设置页的 Mac 入口，以及 `test/macos.test.mjs` 11 项。新增 magpie 的 macOS 后台 watcher：每个新的 Claude 进程自动调用 `mac-apply`，已在同一 PID 上采用 `last-apply.json` 避免重复打开调试器；支持等待退出、重试、`needs-accessibility`、`needs-setup`、`watcher.lock` 多宿主接管。`test/macos-runtime-host.test.mjs` 6 项覆盖新进程、退出再启动、已有状态采用、权限失败、未开 devtools、禁用和双宿主接管。真机用 Node 宿主验证了已有 PID 采用和真实 `mac-apply` 路径（状态 Applied、端口关闭）。全仓在 macOS 下用 `TMPDIR=/private/var/...`（绕开系统 `/var` 符号链接）跑 `npm test`：168 项，147 通过、0 失败、21 跳过（Windows/符号链接夹具）；直接 `npm test` 时旧 `assertPlainDirectory` 用例会因 `/var` 是符号链接而失败，属于测试环境差异。
+
+首次 CLI 尝试的诊断是错的：真正原因是 `InspectorClient` 只发送 CDP 请求、没有给 WebSocket 挂 `onmessage`，每个响应都被当成超时；inspector 本身没有卡死。已修复消息分发和 `Runtime.enable`，并给页面状态探测、页面激活和主进程求值加了超时/清理。用户正常退出并重开 Claude（PID 67626）后，`node bin/claude-3p-zh.mjs mac-apply --locale zh-Hans` 6.6 秒返回 Applied：`messagesLocale=zh-Hans`、`catalogRequestsServed=2`、inspector 端口已关闭；截图确认「新建会话/新建/例程/自定义/更多/选择环境/开启自动模式/描述任务或提出问题」等界面为中文。该窗口当前保持中文。另测 `mac-restore` 后再 `mac-apply`：恢复返回 Restored，重新应用返回 Applied，此时 `catalogRequestsServed` 可为 0（应用已持有同一语言），不能把它当成失败。magpie Bun 运行时执行 `mac-apply` 的跳过路径通过；Node 本地工作台验证了 Mac 按钮只显示 Mac 动作，`/api/run` 返回 Applied。in-app 浏览器的原生 `window.confirm` 会被自动处理，真实 magpie webview 的确认点击仍按 Windows 同一套页面逻辑，未单独截图验收。
+
+未验证：繁体 zh-Hant、真实「退出 Claude 再打开」时 watcher 自动加载的完整 GUI 链路（watcher 逻辑与真实 apply 分别通过）、其他 Claude/macOS 版本、magpie 从本地文件夹/GitHub 安装后的 GUI 链路、全部设置/历史/Cowork 界面。不要把这些扩大为已通过；不要把 `--remote-debugging-port`、`CLAUDE_CDP_AUTH` 或任何签名/系统保护绕过写进实现。
+
+
 ## 2026-10-19 对外 README 展示
 
 README新增npm动态版本徽章、Windows/Node/MIT信息、npm包链接、首版v0.1.0/全部版本/问题反馈入口。按npm包名安装为首步，说明默认简体、保持magpie运行及原入口打开；截图放在使用说明后，旧文件夹条目切换说明补入安装步骤。图片与用户文档均改完整GitHub地址，便于跨页面阅读。first-install与magpie常见问题同步包链接、版本查看和旧条目切换说明。

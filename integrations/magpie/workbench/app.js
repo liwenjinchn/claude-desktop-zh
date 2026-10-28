@@ -1,6 +1,6 @@
 (async () => {
   const labels = { source: '应用位置', root: '独立副本', profile: '3p 数据', gateway: '网关配置', catalog: '语言资源', caches: '可用缓存', locale: '默认语言' };
-  const names = { check: '检查兼容性', install: '写入语言资源', detect: '检查网关', status: '查看状态', plan: '查看计划', 'import-cache': '导入语言缓存', prepare: '创建独立副本', switch: '切换语言', launch: '启动独立副本', restore: '恢复原始语言文件' };
+  const names = { check: '检查兼容性', install: '写入语言资源', detect: '检查网关', status: '查看状态', plan: '查看计划', 'import-cache': '导入语言缓存', prepare: '创建独立副本', switch: '切换语言', launch: '启动独立副本', restore: '恢复原始语言文件', 'mac-apply': '立即加载中文', 'mac-restore': '撤销中文注入' };
   const localeNames = { 'zh-Hans': '简体中文', 'zh-Hant': '繁體中文' };
   const log = document.getElementById('log');
   const selector = document.getElementById('locale-select');
@@ -19,6 +19,7 @@
   try {
     const state = await api('/api/state');
     const copyMode = state.paths.mode === 'copy';
+    const isMac = state.paths.platform === 'darwin';
     const list = document.createElement('dl');
     for (const [key, label] of Object.entries(labels)) {
       if (!copyMode && key === 'root') continue;
@@ -30,8 +31,12 @@
     }
     document.getElementById('paths').append(list);
     selector.value = state.paths.locale;
-    document.getElementById('mode').textContent = copyMode ? '当前目标：独立测试副本。操作不会安装到日常应用。' : '当前目标：现有应用的语言文件。保留现有配置；受保护的商店安装会拒绝修改。';
-    document.getElementById('guard').textContent = '每次写入和启动都会再次确认。请先关闭目标应用；发现文件版本变化或权限不足时会停止。';
+    document.getElementById('mode').textContent = isMac
+      ? '当前目标：正在运行的 Claude 第三方模式窗口。通过 Claude 自己的开发者主进程调试器注入官方中文资源，不修改 Claude.app、签名或网关。'
+      : copyMode ? '当前目标：独立测试副本。操作不会安装到日常应用。' : '当前目标：现有应用的语言文件。保留现有配置；受保护的商店安装会拒绝修改。';
+    document.getElementById('guard').textContent = isMac
+      ? '需要 Claude 已开启 allowDevTools，并允许 Terminal 或 magpie 使用辅助功能。加载完成后会关闭主进程调试器；重启 Claude 后需要再次加载。'
+      : '每次写入和启动都会再次确认。请先关闭目标应用；发现文件版本变化或权限不足时会停止。';
     const issues = state.paths.issues;
     if (issues && Object.keys(issues).length) show({ message: '部分路径未能自动确定，请先检查兼容性或查看状态。', issues });
     function enable(enabled) {
@@ -39,12 +44,14 @@
       for (const button of buttons) button.disabled = !enabled || (button.dataset.write === 'true' && state.paths.allowWrites === false);
     }
     for (const button of buttons) {
-      button.hidden = button.dataset.mode && button.dataset.mode !== (copyMode ? 'copy' : 'original');
+      const wrongMode = button.dataset.mode && button.dataset.mode !== (copyMode ? 'copy' : 'original');
+      const wrongPlatform = (button.dataset.mac === 'true' && !isMac) || (button.dataset.win === 'true' && isMac);
+      button.hidden = Boolean(wrongMode || wrongPlatform);
       button.addEventListener('click', async () => {
         const action = button.dataset.action;
         const locale = selector.value;
         const confirmed = button.dataset.write === 'true' || action === 'launch';
-        const target = copyMode ? '独立测试副本' : '现有应用';
+        const target = isMac ? '正在运行的 Claude 窗口' : copyMode ? '独立测试副本' : '现有应用';
         if (confirmed && !window.confirm(`确认对${target}执行「${names[action]}」？\n所选语言：${localeNames[locale]}\n目标：${(copyMode ? state.paths.root : state.paths.source) || '自动检测（不明确时会停止）'}`)) return;
         enable(false);
         show(names[action] + '进行中…');

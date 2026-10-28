@@ -8,7 +8,8 @@ import { importCache } from '../lib/cache.mjs';
 import { readJSON, localeValue } from '../lib/common.mjs';
 import { discover, discoverInstall, discoverProfiles, discoverCaches, defaultLayout } from '../lib/discover.mjs';
 import { buildRuntimeLocalization } from '../scripts/build-runtime-localization.mjs';
-import { runtimeSetupStatus, setupRuntime, restoreRuntimeSetup, windowsSetupGuard } from '../lib/runtime-setup.mjs';
+import { runtimeSetupStatus, setupRuntime, restoreRuntimeSetup, windowsSetupGuard, runtimeSetupGuard } from '../lib/runtime-setup.mjs';
+import { applyMacLocalization, restoreMacLocalization, macStatus } from '../lib/macos.mjs';
 
 const help = `claude-desktop-zh ${readJSON(new URL('../package.json', import.meta.url)).version} (Node 22+)
 
@@ -27,6 +28,10 @@ inspect       [--source <Claude app directory or Claude.app>]
 detect-3p     [--profile-dir <Claude-3p directory>]
 plan          [--source <app>] [--locale zh-Hans|zh-Hant] [--catalog-dir <dir>]
 runtime-export [--source <app>] [--locale zh-Hans|zh-Hant] --output <new JS file>
+mac-apply     [--source <Claude.app>] [--locale zh-Hans|zh-Hant] [--catalog-dir <dir>] [--state-dir <dir>]
+              [--launch] [--manual] [--keep-inspector]
+mac-restore   [--source <Claude.app>] [--state-dir <dir>] [--manual] [--keep-inspector]
+mac-status    [--source <Claude.app>] [--state-dir <dir>]
 runtime-setup-status [--profile-dir <Claude-3p directory>]
 runtime-setup [--profile-dir <Claude-3p directory>] [--state-dir <backup directory>]
 runtime-setup-restore --file <setup journal> [--profile-dir <Claude-3p directory>]
@@ -46,19 +51,23 @@ Omitted paths are discovered. The managed copy defaults to
 current directory; use --catalog-dir to select another catalog store.
 The default locale is zh-Hans. Both languages require their own official catalogs.
 Windows: prepare-copy modifies a separate application copy only.
-macOS: inspect/plan only; no signature changes or automatic re-signing.
+macOS: mac-apply injects official catalogs into the running 3p window through
+Claude's own developer main-process debugger. It does not modify Claude.app,
+re-sign it, or change the gateway. The debugger is closed after use.
 prepare-copy/restore/switch require the managed copy to be closed.
 No chat history, sign-in state, or real deployment mode is changed.
 `;
 function argumentsOf(argv) {
   const words = [], options = Object.create(null);
+  const boolean = new Set(['launch', 'manual', 'keep-inspector']);
   for (let i = 0; i < argv.length; i++) {
     if (!argv[i].startsWith('--')) { words.push(argv[i]); continue; }
     const key = argv[i].slice(2);
+    if (boolean.has(key)) { options[key] = true; continue; }
     if (options[key] !== undefined || !argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error('Flag requires one value: --' + key);
     options[key] = argv[++i];
   }
-  const valid = new Set(['source', 'locale', 'catalog-dir', 'kind', 'file', 'url', 'cache', 'destination', 'gateway-profile', 'gateway-url', 'gateway-key-file', 'root', 'profile-dir', 'state-dir', 'output', 'runtime-owner']);
+  const valid = new Set(['source', 'locale', 'catalog-dir', 'kind', 'file', 'url', 'cache', 'destination', 'gateway-profile', 'gateway-url', 'gateway-key-file', 'root', 'profile-dir', 'state-dir', 'output', 'runtime-owner', ...boolean]);
   for (const key of Object.keys(options)) if (!valid.has(key)) throw new Error('Unknown flag: --' + key);
   return { words, options };
 }
@@ -90,6 +99,7 @@ async function locked(root, callback) {
 }
 async function main() {
   const { words, options } = argumentsOf(process.argv.slice(2)), [command, subcommand] = words;
+  const macOptions = () => ({ source: options.source, locale: options.locale, catalogDirectory: options['catalog-dir'], stateDirectory: options['state-dir'], launch: options.launch === true, manual: options.manual === true, keepInspector: options['keep-inspector'] === true });
   if (!command || command === 'help') { console.log(help); return; }
   if (words.length > (command === 'catalog' ? 2 : 1)) throw new Error('Unexpected positional argument.');
   const directory = () => path.resolve(options['catalog-dir'] ?? '.catalogs');
@@ -111,14 +121,22 @@ async function main() {
     case 'detect-3p': result = detect3p(options['profile-dir'] ?? profile().directory); break;
     case 'plan': result = plan(source(), directory(), locale()).report; break;
     case 'runtime-export': result = buildRuntimeLocalization(source(), directory(), locale(), required(options, 'output')); break;
+    case 'mac-apply': result = await applyMacLocalization(macOptions()); break;
+    case 'mac-restore': result = await restoreMacLocalization(macOptions()); break;
+    case 'mac-status': result = await macStatus({ source: options.source, stateDirectory: options['state-dir'] }); break;
     case 'runtime-setup-status': result = runtimeSetupStatus(profile().directory); break;
     case 'runtime-setup': {
       const p = profile().directory;
       const state = path.join(stateDirectory(), 'runtime-setup');
-      result = await locked(state, () => setupRuntime(p, state, windowsSetupGuard(options['runtime-owner'])));
+      const guard = process.platform === 'darwin' ? runtimeSetupGuard() : windowsSetupGuard(options['runtime-owner']);
+      result = await locked(state, () => setupRuntime(p, state, guard));
       break;
     }
-    case 'runtime-setup-restore': result = restoreRuntimeSetup(profile().directory, required(options, 'file'), windowsSetupGuard(options['runtime-owner'])); break;
+    case 'runtime-setup-restore': {
+      const guard = process.platform === 'darwin' ? runtimeSetupGuard() : windowsSetupGuard(options['runtime-owner']);
+      result = restoreRuntimeSetup(profile().directory, required(options, 'file'), guard);
+      break;
+    }
     case 'catalog': {
       const kind = options.kind ?? 'base';
       if (subcommand === 'import') result = saveCatalog(directory(), locale(), kind, fs.readFileSync(required(options, 'file')), { source: 'user-import', ...(options.url ? { url: options.url } : {}) });

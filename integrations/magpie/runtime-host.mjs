@@ -2,8 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { defaultLayout } from '../../lib/discover.mjs';
-import { assertPlainDirectory, localeValue, sha256 } from '../../lib/common.mjs';
+import { assertPlainDirectory, localeValue, readJSON, sha256 } from '../../lib/common.mjs';
+import { claudePids, findClaudeApp, macLayout } from '../../lib/macos.mjs';
 
 const pluginDirectory = fileURLToPath(new URL('.', import.meta.url));
 const projectDirectory = fileURLToPath(new URL('../../', import.meta.url));
@@ -20,7 +22,7 @@ function identifiesPlugin(spec) {
   if (/^magpie-claude-zh(?:@[^/\s]+)?$/.test(spec)) return true;
   // GitHub installs use github:owner/repo until npm has a matching release.
   // Keep the previous repository URL working through GitHub's rename redirect.
-  return /^(?:github:|(?:git\+)?https:\/\/github\.com\/)polang233\/claude-desktop(?:-3p)?-zh(?:\.git)?(?:#[a-z0-9._/-]+)?$/i.test(spec);
+  return /^(?:github:|(?:git\+)?https:\/\/github\.com\/)(?:polang233|liwenjinchn)\/claude-desktop(?:-3p)?-zh(?:\.git)?(?:#[a-z0-9._/-]+)?$/i.test(spec);
 }
 
 export function registrySnapshot(directory, options) {
@@ -39,31 +41,149 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
   const platform = dependencies.platform ?? process.platform;
   const startProcess = dependencies.spawn ?? spawn;
   const registry = dependencies.registrySnapshot ?? registrySnapshot;
+  const macStateDirectory = dependencies.macStateDirectory ?? macLayout().stateDirectory;
+  const macPids = dependencies.macPids ?? (() => {
+    try { return claudePids(findClaudeApp(options.sourceDirectory)); } catch { return []; }
+  });
+  const macLastApplied = dependencies.macLastApplied ?? (() => {
+    try { return readJSON(path.join(macStateDirectory, 'last-apply.json')); } catch { return null; }
+  });
+  const macApply = dependencies.macApply ?? (locale => controller.execute('mac-apply', 'mac-apply', { locale }));
+  const macPollMs = dependencies.macPollMs ?? 3000;
   let current = { state: 'not-started', locale: options.locale ?? 'zh-Hans', automaticNextLaunch: false };
   let starting, child, stopFile, stateFile, stopRequested = false;
+  const macOwner = randomUUID();
+  let macTimer = null, macApplying = false, macSeenPid = null, macAttempts = 0, macStateFile = null, macLockFile = null;
   function publish(next) {
     const previous = current;
     current = next;
     if (stateFile) {
       try { fs.writeFileSync(stateFile, JSON.stringify({ ...current, parentProcessId: process.pid }, null, 2)); } catch {}
     }
-    const message = next.state === 'waiting-for-normal-exit' && previous.state !== next.state
+    if (macStateFile) {
+      try { fs.writeFileSync(macStateFile, JSON.stringify({ ...current, parentProcessId: process.pid }, null, 2)); } catch {}
+    }
+    const macMessage = platform === 'darwin'
+      ? next.state === 'watching' && previous.state !== next.state
+        ? '已启用启动时自动加载；打开 Claude 后会自动加载中文。'
+        : next.state === 'Applied' && previous.state !== next.state
+          ? 'Claude 中文已加载。'
+          : next.state === 'needs-accessibility' && previous.state !== next.state
+            ? '需要给 magpie 授予辅助功能权限，才能自动加载中文。'
+            : next.state === 'needs-setup' && previous.state !== next.state
+              ? '请先正常退出 Claude，准备 allowDevTools 后再打开。'
+              : null
+      : null;
+    const message = macMessage ?? (next.state === 'waiting-for-normal-exit' && previous.state !== next.state
       ? '请通过 Claude 的“文件 → 退出”正常退出，等待中文准备完成。'
       : next.state === 'watching' && previous.state !== next.state && next.setupChanged === true
-        ? '中文已准备好，从原来的入口打开 Claude 即可。' : null;
+        ? '中文已准备好，从原来的入口打开 Claude 即可。' : null);
     if (message) {
       try { Promise.resolve(input.client?.tui?.showToast({ body: { title: 'Claude 中文', message, variant: 'info' } })).catch(() => {}); } catch {}
     }
   }
   function stop() {
     stopRequested = true;
+    if (macTimer) { clearInterval(macTimer); macTimer = null; }
+    if (macLockFile) {
+      try {
+        const lock = readJSON(macLockFile);
+        if (lock?.instance === macOwner) fs.unlinkSync(macLockFile);
+      } catch {}
+    }
     if (stopFile) fs.writeFileSync(stopFile, 'Plugin requested normal watcher stop.\n');
-    publish({ ...current, state: 'stopping', automaticNextLaunch: false });
+    publish({ ...current, state: platform === 'darwin' ? 'stopped' : 'stopping', automaticNextLaunch: false });
+  }
+  function macOwnerChanged() {
+    if (!macLockFile) return false;
+    try { return readJSON(macLockFile)?.instance !== macOwner; } catch { return false; }
+  }
+  async function macTick() {
+    if (stopRequested || macApplying) return;
+    if (macOwnerChanged()) {
+      // A newer plugin host owns the watcher. Stop without overwriting its state.
+      stopRequested = true;
+      if (macTimer) { clearInterval(macTimer); macTimer = null; }
+      return;
+    }
+    let pids;
+    try { pids = macPids() || []; } catch { pids = []; }
+    const pid = pids[0] ?? null;
+    if (!pid) {
+      if (macSeenPid !== null) { macSeenPid = null; macAttempts = 0; }
+      if (current.state !== 'waiting-for-claude') publish({ ...current, state: 'waiting-for-claude', automaticNextLaunch: true, appliedPid: null });
+      return;
+    }
+    if (pid !== macSeenPid) { macSeenPid = pid; macAttempts = 0; }
+    if (current.state === 'Applied' && current.appliedPid === pid) return;
+    if (macAttempts >= 8) {
+      if (current.state !== 'apply-failed' && current.state !== 'needs-accessibility' && current.state !== 'needs-setup') {
+        publish({ ...current, state: 'apply-failed', automaticNextLaunch: true, appliedPid: pid });
+      }
+      return;
+    }
+    if (macAttempts === 0) {
+      const last = macLastApplied();
+      if (last && last.state === 'Applied' && last.pid === pid) {
+        publish({ ...current, state: 'Applied', automaticNextLaunch: true, appliedPid: pid, lastResult: 'already-applied' });
+        return;
+      }
+    }
+    macApplying = true;
+    try {
+      const result = await macApply(localeValue(options.locale));
+      if (stopRequested) return;
+      if (result?.state === 'RuntimeSetupRequired') {
+        macAttempts = 8;
+        publish({ ...current, state: 'needs-setup', automaticNextLaunch: true, appliedPid: pid });
+        return;
+      }
+      macAttempts = 0;
+      const state = result?.state === 'PartiallyApplied' ? 'PartiallyApplied' : result?.state === 'Applied' ? 'Applied' : 'apply-failed';
+      publish({ ...current, state, automaticNextLaunch: true, appliedPid: pid, lastResult: result?.state, pages: Array.isArray(result?.pages) ? result.pages.length : 0 });
+    } catch (error) {
+      if (stopRequested) return;
+      const message = String(error?.message || error);
+      if (/Accessibility permission/i.test(message)) {
+        macAttempts = 8;
+        publish({ ...current, state: 'needs-accessibility', automaticNextLaunch: true, appliedPid: pid, note: '给 magpie 授予辅助功能权限后重试。' });
+      } else if (/not running|No 3p Gateway|not configured for 3p|allowDevTools is not enabled/i.test(message)) {
+        macAttempts = 8;
+        publish({ ...current, state: 'apply-failed', automaticNextLaunch: true, appliedPid: pid, note: '请确认 Claude 是第三方 Gateway 模式并已开启 allowDevTools。' });
+      } else {
+        macAttempts += 1;
+        publish({ ...current, state: 'waiting-for-claude', automaticNextLaunch: true, appliedPid: pid, note: 'Claude 窗口尚未就绪，正在重试。' });
+      }
+    } finally { macApplying = false; }
+  }
+  function startMacWatcher() {
+    if (options.runtimeAutoLoad === false) {
+      current = { ...current, state: 'disabled', automaticNextLaunch: false };
+      return current;
+    }
+    let locale;
+    try { locale = localeValue(options.locale); } catch { current = { ...current, state: 'disabled' }; return current; }
+    macStateFile = path.join(macStateDirectory, 'watcher.json');
+    macLockFile = path.join(macStateDirectory, 'watcher.lock');
+    try {
+      fs.mkdirSync(path.dirname(macStateFile), { recursive: true });
+      fs.writeFileSync(macLockFile, JSON.stringify({ instance: macOwner, pid: process.pid, startedAt: new Date().toISOString() }, null, 2));
+    } catch {}
+    publish({ ...current, state: 'watching', locale, automaticNextLaunch: true, appliedPid: macSeenPid });
+    macTimer = setInterval(() => { void macTick(); }, macPollMs);
+    macTimer.unref?.();
+    void macTick();
+    return current;
   }
   async function start() {
     if (starting) return starting;
     starting = (async () => {
       if (stopRequested) { current = { ...current, state: 'stopped' }; return current; }
+      if (platform === 'darwin' && options.mode !== 'copy' && options.allowWrites !== false) {
+        // The renderer keeps its own language store. A light watcher applies
+        // after each new Claude process; it never launches or closes Claude.
+        return startMacWatcher();
+      }
       if (platform !== 'win32' || options.mode === 'copy' || options.allowWrites === false || options.runtimeAutoLoad === false) {
         current = { ...current, state: 'disabled' }; return current;
       }

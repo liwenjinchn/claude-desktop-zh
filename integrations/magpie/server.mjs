@@ -23,8 +23,8 @@ export const ClaudeChinesePlugin = async (_input, options = {}) => {
   return {
     tool: {
       claude_zh_manage: {
-        description: 'Inspect or manage Chinese language resources in the selected Claude installation. Ask the human before install/prepare/switch/restore/import-cache/launch, then pass the exact action as confirm. Optional locale selects Simplified or Traditional Chinese for this action. prepare explicitly creates an isolated copy. No shell commands accepted.',
-        args: { type: 'object', properties: { action: { type: 'string', enum: ['check', 'install', 'discover', 'detect', 'status', 'plan', 'import-cache', 'prepare', 'switch', 'restore', 'launch'] }, confirm: { type: 'string' }, locale: { type: 'string', enum: ['zh-Hans', 'zh-Hant'] } }, required: ['action'], additionalProperties: false },
+        description: 'Inspect or manage Chinese language resources in the selected Claude installation. Ask the human before install/prepare/switch/restore/import-cache/launch/mac-apply/mac-restore, then pass the exact action as confirm. Optional locale selects Simplified or Traditional Chinese for this action. On macOS, mac-apply injects official catalogs into the running 3p window through Claude’s own developer main-process debugger and closes it afterwards; mac-restore removes that runtime choice. Neither modifies Claude.app, its signature, or the gateway. prepare explicitly creates an isolated copy. No shell commands accepted.',
+        args: { type: 'object', properties: { action: { type: 'string', enum: ['check', 'install', 'discover', 'detect', 'status', 'plan', 'import-cache', 'prepare', 'switch', 'restore', 'launch', 'mac-apply', 'mac-restore'] }, confirm: { type: 'string' }, locale: { type: 'string', enum: ['zh-Hans', 'zh-Hant'] } }, required: ['action'], additionalProperties: false },
         execute: async ({ action, confirm, locale }) => JSON.stringify(await controller.execute(action, confirm, { locale }), null, 2)
       },
       claude_zh_sync_status: {

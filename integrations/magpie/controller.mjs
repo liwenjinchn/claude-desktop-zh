@@ -6,8 +6,8 @@ import { defaultLayout } from '../../lib/discover.mjs';
 
 // Fixed CLI commands only. Explicit paths take priority; discovery is lazy so
 // restoring a managed copy never depends on the original app or gateway.
-export const WRITES = ['install', 'prepare', 'switch', 'restore', 'import-cache'];
-export const ACTIONS = ['check', 'install', 'discover', 'detect', 'status', 'plan', 'import-cache', 'prepare', 'switch', 'restore', 'launch'];
+export const WRITES = ['install', 'prepare', 'switch', 'restore', 'import-cache', 'mac-apply', 'mac-restore'];
+export const ACTIONS = ['check', 'install', 'discover', 'detect', 'status', 'plan', 'import-cache', 'prepare', 'switch', 'restore', 'launch', 'mac-apply', 'mac-restore'];
 
 export function createController(options = {}, runProcess = runCLI) {
   let busy = false;
@@ -15,6 +15,7 @@ export function createController(options = {}, runProcess = runCLI) {
   const defaults = defaultLayout();
   const root = options.managedRoot || defaults.managedRoot;
   const mode = options.mode ?? 'original';
+  const platform = options.platform ?? process.platform;
   if (!['original', 'copy'].includes(mode)) throw new Error('Mode must be original or copy.');
   const stateDirectory = options.stateDirectory || defaults.originalStateDirectory || path.join(path.dirname(root), 'original');
   const catalog = options.catalogDirectory || defaults.catalogDirectory;
@@ -49,6 +50,8 @@ export function createController(options = {}, runProcess = runCLI) {
       case 'switch': args = mode === 'original' ? ['original-switch', '--state-dir', stateDirectory, '--locale', language, ...catalogArgs()] : ['switch', '--root', root, '--locale', language, ...catalogArgs()]; break;
       case 'restore': args = mode === 'original' ? ['original-restore', '--state-dir', stateDirectory] : ['restore', '--root', root]; break;
       case 'launch': args = ['launch', '--root', root]; break;
+      case 'mac-apply': args = ['mac-apply', ...sourceArgs(), '--locale', language, ...catalogArgs()]; break;
+      case 'mac-restore': args = ['mac-restore', ...sourceArgs()]; break;
       default: throw new Error('Unsupported action.');
     }
     return runProcess(configuration(), args);
@@ -57,7 +60,8 @@ export function createController(options = {}, runProcess = runCLI) {
     if (!ACTIONS.includes(action)) throw new Error('Unsupported action.');
     const language = locale(selection.locale);
     if (mode === 'original' && ['prepare', 'launch'].includes(action)) throw new Error('Copy actions require explicit mode: copy. Original mode never creates or launches a separate profile.');
-    if (mode === 'copy' && ['install', 'check'].includes(action)) throw new Error('Original-install actions require mode: original.');
+    if (mode === 'copy' && ['install', 'check', 'mac-apply', 'mac-restore'].includes(action)) throw new Error('Original-install actions require mode: original.');
+    if (['mac-apply', 'mac-restore'].includes(action) && platform !== 'darwin') throw new Error('macOS runtime localization is available on macOS only.');
     if (action === 'launch' && confirmation !== action) throw new Error('Confirm the exact action.');
     if (busy) throw new Error('Another plugin operation is running.');
     if (WRITES.includes(action)) {
@@ -81,6 +85,22 @@ export function createController(options = {}, runProcess = runCLI) {
           if (!/^(?:Error: )?Missing compatible zh-Han[st] base\/dynamic catalogs\./.test(error.message)) throw error;
           await command('import-cache', language);
           await command('plan', language);
+        }
+      }
+      if (action === 'mac-apply') {
+        try { return await command(action, language); }
+        catch (error) {
+          if (!/^(?:Error: )?Missing compatible zh-Han[st] base\/dynamic catalogs\./.test(error.message)) throw error;
+          try { await command('import-cache', language); }
+          catch { /* Fall through to the official URL, which may be blocked by a challenge. */ }
+          try { return await command(action, language); }
+          catch (missing) {
+            if (!/^(?:Error: )?Missing compatible zh-Han[st] base\/dynamic catalogs\./.test(missing.message)) throw missing;
+            for (const kind of ['base', 'dynamic']) {
+              await runProcess(configuration(), ['catalog', 'fetch', '--kind', kind, '--locale', language, '--catalog-dir', catalog]);
+            }
+            return await command(action, language);
+          }
         }
       }
       if (mode === 'original' && action === 'switch') {
@@ -149,14 +169,14 @@ export function createController(options = {}, runProcess = runCLI) {
       return { mode, stateDirectory, source: options.sourceDirectory || discovered.source, root, profile: options.profileDirectory || discovered.profileDirectory,
         gateway: options.gatewayProfile || discovered.gatewayProfile, catalog, cache: options.cacheDirectory || '',
         caches: options.cacheDirectory ? [options.cacheDirectory] : discovered.caches || [], issues: discovered.issues || {},
-        locale: locale(), allowWrites: options.allowWrites !== false, autoSync: false };
+        locale: locale(), allowWrites: options.allowWrites !== false, autoSync: false, platform };
     }
   };
 }
 function runCLI(config, args) {
   return new Promise((resolve, reject) => {
-    execFile(config.executable, [config.cli, ...args], { cwd: config.cwd, windowsHide: true, timeout: 45_000, maxBuffer: 8 * 1024 * 1024, shell: false }, (error, stdout, stderr) => {
-      if (error) { reject(new Error(stderr.trim() || 'CLI failed or exceeded 45 seconds. Inspect the managed copy before retrying.')); return; }
+    execFile(config.executable, [config.cli, ...args], { cwd: config.cwd, windowsHide: true, timeout: 120_000, maxBuffer: 8 * 1024 * 1024, shell: false }, (error, stdout, stderr) => {
+      if (error) { reject(new Error(stderr.trim() || 'CLI failed or exceeded 120 seconds. Inspect the managed copy before retrying.')); return; }
       try { resolve(JSON.parse(stdout)); } catch { reject(new Error('CLI did not return JSON.')); }
     });
   });

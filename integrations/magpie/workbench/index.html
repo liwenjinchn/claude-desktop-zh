@@ -23,16 +23,18 @@
 <section>
 <h2>操作</h2>
 <div class="actions">
-<button type="button" data-action="check" data-mode="original" disabled>检查兼容性</button>
-<button type="button" data-action="install" data-mode="original" data-write="true" disabled>写入语言资源</button>
+<button type="button" data-action="check" data-mode="original" data-win="true" disabled>检查兼容性</button>
+<button type="button" data-action="install" data-mode="original" data-win="true" data-write="true" disabled>写入语言资源</button>
 <button type="button" data-action="detect" disabled>检查网关</button>
 <button type="button" data-action="status" disabled>查看状态</button>
 <button type="button" data-action="plan" disabled>查看计划</button>
 <button type="button" data-action="import-cache" data-write="true" disabled>导入语言缓存</button>
 <button type="button" data-action="prepare" data-mode="copy" data-write="true" disabled>创建独立测试副本</button>
-<button type="button" data-action="switch" data-write="true" disabled>切换语言</button>
+<button type="button" data-action="switch" data-win="true" data-write="true" disabled>切换语言</button>
 <button type="button" data-action="launch" data-mode="copy" disabled>启动独立测试副本</button>
-<button type="button" data-action="restore" data-write="true" disabled>恢复原始语言文件</button>
+<button type="button" data-action="restore" data-win="true" data-write="true" disabled>恢复原始语言文件</button>
+<button type="button" data-action="mac-apply" data-mac="true" data-write="true" disabled>立即加载中文</button>
+<button type="button" data-action="mac-restore" data-mac="true" data-write="true" disabled>撤销中文注入</button>
 </div>
 <p id="guard" class="note"></p>
 </section>
