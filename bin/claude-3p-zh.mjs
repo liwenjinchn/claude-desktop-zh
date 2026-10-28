@@ -29,7 +29,7 @@ detect-3p     [--profile-dir <Claude-3p directory>]
 plan          [--source <app>] [--locale zh-Hans|zh-Hant] [--catalog-dir <dir>]
 runtime-export [--source <app>] [--locale zh-Hans|zh-Hant] --output <new JS file>
 mac-apply     [--source <Claude.app>] [--locale zh-Hans|zh-Hant] [--catalog-dir <dir>] [--state-dir <dir>]
-              [--launch] [--manual] [--keep-inspector]
+              [--launch] [--manual] [--keep-inspector] [--keep-inspect-page]
 mac-restore   [--source <Claude.app>] [--state-dir <dir>] [--manual] [--keep-inspector]
 mac-status    [--source <Claude.app>] [--state-dir <dir>]
 runtime-setup-status [--profile-dir <Claude-3p directory>]
@@ -59,7 +59,7 @@ No chat history, sign-in state, or real deployment mode is changed.
 `;
 function argumentsOf(argv) {
   const words = [], options = Object.create(null);
-  const boolean = new Set(['launch', 'manual', 'keep-inspector']);
+  const boolean = new Set(['launch', 'manual', 'keep-inspector', 'keep-inspect-page']);
   for (let i = 0; i < argv.length; i++) {
     if (!argv[i].startsWith('--')) { words.push(argv[i]); continue; }
     const key = argv[i].slice(2);
@@ -99,7 +99,7 @@ async function locked(root, callback) {
 }
 async function main() {
   const { words, options } = argumentsOf(process.argv.slice(2)), [command, subcommand] = words;
-  const macOptions = () => ({ source: options.source, locale: options.locale, catalogDirectory: options['catalog-dir'], stateDirectory: options['state-dir'], launch: options.launch === true, manual: options.manual === true, keepInspector: options['keep-inspector'] === true, runtimeOwner: options['mac-owner'], runtimeOwnerInstance: options['mac-owner-instance'] });
+  const macOptions = () => ({ source: options.source, locale: options.locale, catalogDirectory: options['catalog-dir'], stateDirectory: options['state-dir'], launch: options.launch === true, manual: options.manual === true, keepInspector: options['keep-inspector'] === true, keepInspectPage: options['keep-inspect-page'] === true, runtimeOwner: options['mac-owner'], runtimeOwnerInstance: options['mac-owner-instance'] });
   if (!command || command === 'help') { console.log(help); return; }
   if (words.length > (command === 'catalog' ? 2 : 1)) throw new Error('Unexpected positional argument.');
   const directory = () => path.resolve(options['catalog-dir'] ?? '.catalogs');

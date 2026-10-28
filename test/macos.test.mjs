@@ -166,7 +166,7 @@ test('macOS partial page failures stay visible and all failures throw after reco
 
 test('menu automation checks the actual operation instead of the legacy global accessibility flag', async () => {
   let calls = 0;
-  await assert.rejects(openMainProcessInspector(123, { port: 65439, exec: (command, args) => {
+  await assert.rejects(openMainProcessInspector(123, { port: 65439, captureBrowser: () => ({ state: 'unavailable' }), exec: (command, args) => {
     calls++;
     assert.equal(command, 'osascript');
     assert.equal(args[1].includes('get UI elements enabled'), false);

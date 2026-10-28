@@ -50,7 +50,7 @@ node bin/claude-3p-zh.mjs help
 
 ## 使用与验证范围
 
-「启动时加载中文」在 macOS 控制后台进程监听，在 Windows 控制自动准备和加载。页面刷新后，macOS 需通过工作台「立即加载中文」或 CLI 再次应用。调试器操作可能短暂打开 Chrome 的 `chrome://inspect`；正常加载完成后本地调试端口会关闭。
+「启动时加载中文」在 macOS 控制后台进程监听，在 Windows 控制自动准备和加载。页面刷新后，macOS 需通过工作台「立即加载中文」或 CLI 再次应用。调试器操作仍可能短暂打开 Chrome 的 `chrome://inspect`；允许 Magpie 自动化 Google Chrome 后，插件会尝试关闭本次唯一新增的调试标签并恢复原焦点，保留原有标签。权限不足时仍可加载中文，但页面会保留。正常加载完成后本地调试端口会关闭。
 
 2026-10-28，本机 macOS 27.2、Claude 4.29.0、第三方 Gateway 模式已实测：正常退出后从原入口重新打开，由真实 magpie watcher 自动加载简体中文，Code 主界面显示中文，调试端口关闭。该结果不代表繁体、所有页面、其他版本或首次冷安装均通过。Windows 历史验证范围见[当前状态](https://github.com/liwenjinchn/claude-desktop-zh/blob/main/docs/status.md)。
 

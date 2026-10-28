@@ -25,7 +25,7 @@ test('published tarball installs and loads by package name with its runtime and 
   for (const required of ['integrations/magpie/server.mjs', 'integrations/magpie/page/index.html',
     'integrations/magpie/page/icon.png', 'integrations/windows-runtime/RuntimeConsoleBridge.cs',
     'scripts/test-runtime-autoload.ps1', 'scripts/build-runtime-localization.mjs', 'assets/logo.png',
-    'lib/macos.mjs', 'lib/asar-reader.mjs', 'lib/runtime-localization.mjs',
+    'lib/macos.mjs', 'lib/macos-browser.mjs', 'lib/asar-reader.mjs', 'lib/runtime-localization.mjs',
     'integrations/magpie/runtime-host.mjs', 'docs/macos.md',
     'lib/module-exports.mjs', 'lib/vendor/js-tokens.mjs', 'lib/vendor/js-tokens.LICENSE']) {
     assert(files.includes(required), 'Missing runtime asset: ' + required);

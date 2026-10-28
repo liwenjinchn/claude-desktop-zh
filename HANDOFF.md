@@ -1,5 +1,11 @@
 # 开发交接
 
+## 2026-10-29 Chrome 调试标签自动清理（本机实测通过）
+
+用户要求减少 chrome://inspect/#devices 打扰：优先不打开，否则后台打开并关闭。只读当前 Claude 4.29.0 已确认其菜单处理器调用 inspector.open 后直接执行 /usr/bin/open -a Google Chrome chrome://inspect；现有入口不能参数化阻止浏览器打开。本地新增 macos-browser.mjs：打开前只记录标签数字 ID，保守关闭唯一新增且 URL 精确匹配的 inspect 标签，复核 Chrome PID，不关闭原有标签或其他网址；权限/识别失败时保留浏览器页面，不阻断中文。改为 open -g Claude，先尝试后台菜单操作，失败才前台操作；清理后仅当当前前台仍是 Chrome/Claude 时恢复原焦点，用户已切换其他应用则不抢回。
+
+新增 --keep-inspect-page，--manual/--keep-inspector 路径保留页面。单测184项：163通过、21跳过、0失败；两份 AppleScript 用 osacompile 编译通过，尚不代表浏览器实机行为通过。用户明确同意新增 Magpie→Google Chrome 自动化授权并要求验证；系统设置已读回该项为 on。候选运行源码已安装并保留旧文件备份。初次实测暴露 Chrome scripting 字典的 tab/window ID 类型为 text，已将 ID 集合比较统一为 text，避免把旧标签误判为新标签。最终真实 Magpie/Bun mac-apply 返回 Applied、closed-new-tab/closed=1、newTabs=1、candidates=1、baselineTabs=6、baselinePreserved=true、focusRestored=true；9229 无监听。已有6标签保留，只有此次新建标签被关闭，未关闭用户原有页面。此结果限当前 Chrome 已运行场景；全新启动Chrome、其他浏览器和完全无闪现尚未实测。不承诺Claude永不拉起浏览器。
+
 ## 0.2.2 候选：发布审查整改与布局调查
 
 用户已授权修复后提交、推送至 liwenjinchn/claude-desktop-zh。保留当前原作者 origin；实际推送使用 mac 远端，不推上游。两份版本号为 0.2.2，元数据指向当前仓库，作者/许可保留。npm 当前 latest 0.1.1、公开写入者仅 polang233，本机未认证，不发布 npm，不移动历史 v0.2.1 标签。

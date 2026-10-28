@@ -54,7 +54,7 @@ node bin/claude-3p-zh.mjs mac-restore
 
 `mac-apply` 使用 Claude 自带 Developer → Enable Main Process Debugger，核对 inspector 的 PID/可执行文件身份，给 `app://localhost` 页面加载语言。源码还会核对页面语言模块 SHA256；未知锚点或漂移会停止。正常完成会关闭本次打开的调试端口。页面刷新（⌘R）后的窗口需工作台「立即加载中文」或 CLI 再次应用，不等于新进程启动。
 
-`mac-restore` 移除本次 fetch/清单/语言覆盖；Claude 自己保存的语言若为中文，撤销后未必变回英文。`--manual` 要求用户先手动打开主进程调试器，再执行命令；`--keep-inspector` 仅供诊断，本地 Node inspector 无认证，不应长期保留。应用菜单可能顺带打开 Chrome 的 `chrome://inspect`，该标签可关闭。
+`mac-restore` 移除本次 fetch/清单/语言覆盖；Claude 自己保存的语言若为中文，撤销后未必变回英文。`--manual` 要求用户先手动打开主进程调试器，再执行命令；`--keep-inspector` 仅供诊断，本地 Node inspector 无认证，不应长期保留。Claude 的菜单仍可能通过系统命令打开 Chrome 的 `chrome://inspect`。插件默认记录打开前的标签 ID，随后仅在识别到一个新增的、地址精确匹配的调试标签时关闭它，并尝试恢复原来的前台应用；原有标签和其他页面保留。此操作需要 magpie 对 Google Chrome 的「自动化」权限；拒绝授权或无法唯一识别时会保留页面，中文加载仍可继续。尝试从后台操作菜单和打开 Claude，但系统仍可能短暂切换焦点，不能保证完全无闪现。需要保留页面时使用 `--keep-inspect-page`；`--manual` 和 `--keep-inspector` 不清理浏览器标签。
 
 ## 验证与边界
 
