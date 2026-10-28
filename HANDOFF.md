@@ -2,7 +2,7 @@
 
 ## 2026-10-28 macOS 运行时中文实机通过（一键命令已验收）
 
-magpie 的 GitHub 发现查询为 `topic:magpie-plugin archived:false fork:false`，fork 会被排除；因此最终发布的是非 fork 仓库 https://github.com/liwenjinchn/claude-desktop-zh-mac（v0.2.1，topics 已加 `magpie-plugin` 等），`liwenjinchn/claude-desktop-zh` 仅保留为 fork 镜像/历史，不作为发现入口。
+magpie 的 GitHub 发现查询为 `topic:magpie-plugin archived:false fork:false`，fork 会被排除；因此最终发布的是非 fork 仓库 https://github.com/liwenjinchn/claude-desktop-zh（v0.2.1，topics 已加 `magpie-plugin` 等）；原 fork 已改名为 https://github.com/liwenjinchn/claude-desktop-zh-fork，仅作镜像/历史，不作为发现入口。
 
 本机 macOS 27.2、Claude Desktop 3.6556.2、第三方 Gateway 模式（`Claude-3p`，`allowDevTools=true`），magpie 0.1.1609；npm 插件 0.1.1 本身仍是 Windows-only。官方中文目录通过本机浏览器取得并导入（`catalog fetch` 被 Cloudflare 403 拦截）：基础 39,521 键中命中 36,304/37,201（97.59%，3 个占位符不兼容回退英文），动态 49/49；目录保存在忽略的 `.catalogs` 及 `~/Library/Application Support/claude-desktop-zh/catalogs`。
 

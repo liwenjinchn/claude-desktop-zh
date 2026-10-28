@@ -31,7 +31,7 @@
 
 macOS 通过同一套运行时注入工作：使用 Claude 自己的开发者主进程调试器，把官方中文目录加载到运行中的 3p 窗口内存。不修改 `Claude.app`、不重新签名、不改 Gateway。
 
-在 magpie 中移除旧的 npm 条目，按 `github:liwenjinchn/claude-desktop-zh-mac` 或仓库地址添加本仓库，保持插件启用；首次给 magpie 授予辅助功能权限。保持 magpie 运行，打开 Claude 后会后台自动加载。
+在 magpie 中移除旧的 npm 条目，按 `github:liwenjinchn/claude-desktop-zh` 或仓库地址添加本仓库，保持插件启用；首次给 magpie 授予辅助功能权限。保持 magpie 运行，打开 Claude 后会后台自动加载。
 
 要求 Claude 3p Gateway、Node.js 22+、`allowDevTools` 已开启，并给终端或 magpie 授予辅助功能权限。官方目录需先导入；当前版本的基础覆盖率为 97.59%。
 
