@@ -32,7 +32,7 @@ test('locale loader patch follows renamed symbols and directs Chinese to its own
   assert(!result.includes('base:"/i18n/en-US.json"'));
 });
 test('selects compatible catalog instead of newest file timestamp', t => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), '3p-zh-catalog-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), '3p-zh-catalog-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const english = Object.fromEntries(Array.from({ length: 1001 }, (_, i) => ['key' + i, 'value']));
   const compatible = Object.fromEntries(Object.keys(english).map(k => [k, '翻译']));
   saveCatalog(dir, 'zh-Hans', 'base', Buffer.from(JSON.stringify(compatible)), { source: 'test' });
@@ -40,7 +40,7 @@ test('selects compatible catalog instead of newest file timestamp', t => {
   assert.equal(bestCatalog(dir, 'zh-Hans', 'base', english).coverage, 1);
 });
 test('rejects modified catalog snapshots', t => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), '3p-zh-hash-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), '3p-zh-hash-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const saved = saveCatalog(dir, 'zh-Hant', 'dynamic', Buffer.from('{"a":"甲"}'), { source: 'test' });
   fs.writeFileSync(path.join(dir, 'zh-Hant/dynamic', saved.sha256 + '.json'), '{"a":"乙"}');
   assert.throws(() => bestCatalog(dir, 'zh-Hant', 'dynamic', { a: 'A' }), /hash mismatch/);

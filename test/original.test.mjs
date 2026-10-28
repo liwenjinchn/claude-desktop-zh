@@ -8,7 +8,7 @@ import { saveCatalog } from '../lib/catalogs.mjs';
 import { readJSON, sha256 } from '../lib/common.mjs';
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zh-original-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'zh-original-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const source = path.join(root, 'application'), state = path.join(root, 'state'), catalogs = path.join(root, 'catalogs');
   const resources = path.join(source, 'resources');

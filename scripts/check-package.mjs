@@ -14,6 +14,10 @@ assert.equal(pkg.exports, pkg.main);
 assert.equal(folder.name, pkg.name);
 assert.equal(folder.version, pkg.version);
 assert.equal(folder.description, pkg.description);
+assert.equal(pkg.repository.url, 'git+https://github.com/liwenjinchn/claude-desktop-zh.git');
+assert.equal(pkg.homepage, 'https://github.com/liwenjinchn/claude-desktop-zh#readme');
+assert.equal(pkg.bugs.url, 'https://github.com/liwenjinchn/claude-desktop-zh/issues');
+assert(pkg.files.includes('docs/macos.md'), 'macOS instructions must be included in the package.');
 const icon = fs.readFileSync(path.join(root, 'assets/logo.png'));
 assert(icon.length <= 1024 * 1024, 'magpie icons must fit within 1 MB.');
 assert.equal(pkg.magpie.icon, 'data:image/png;base64,' + icon.toString('base64'));
@@ -21,6 +25,8 @@ assert.equal(folder.magpie.icon, pkg.magpie.icon);
 assert(icon.equals(fs.readFileSync(path.join(root, 'integrations/magpie/page/icon.png'))));
 for (const file of [pkg.main, pkg.magpie.page.file, pkg.magpie.page.icon,
   'bin/claude-3p-zh.mjs', 'scripts/build-runtime-localization.mjs',
+  'lib/macos.mjs', 'lib/asar-reader.mjs', 'lib/runtime-localization.mjs',
+  'integrations/magpie/runtime-host.mjs', 'docs/macos.md',
   'lib/module-exports.mjs', 'lib/vendor/js-tokens.mjs', 'lib/vendor/js-tokens.LICENSE',
   'scripts/test-runtime-autoload.ps1', 'integrations/windows-runtime/RuntimeConsoleBridge.cs']) {
   assert(fs.statSync(path.join(root, file)).isFile(), 'Missing package file: ' + file);

@@ -1,88 +1,76 @@
 # macOS 运行时中文
 
-2026-10-28 在 macOS 27.2、Claude Desktop 3.6556.2 第三方 Gateway 模式上实机验证：官方中文目录在运行中的窗口内存加载，主界面切换为简体中文。没有修改 `Claude.app` 或 `app.asar`，没有重新签名，没有改 Gateway，也没有改 SIP、Gatekeeper、entitlement 或 Keychain。
+当前源码候选 0.2.2 支持外部 `ion-dist` 目录和 Claude 4.29.0 的 `ion-dist.asar` 布局。官方语言目录只加载到运行中的第三方 Gateway 窗口内存，不修改 `Claude.app`、ASAR 或应用签名，不改变 Gateway。
 
-## 为什么不用改包
+## 首次准备
 
-macOS 版本的应用包只带一部分官方语言目录，`ion-dist/i18n` 里没有 `zh-Hans`。应用本身提供了一个开发者功能：**Developer → Enable Main Process Debugger**（由 `developer_settings.json` 的 `allowDevTools` 控制）。打开后，主进程在 `127.0.0.1:9229` 暴露 Node inspector；我们通过它调用 Electron 的 `webContents.executeJavaScript`，把官方中文目录交给页面自己的语言 store。整个过程只在目标窗口的内存里发生。
+需要 Node.js 22+、Claude 第三方 Gateway 配置、单个 Claude 主进程，以及兼容的官方中文基础/动态目录。magpie 当前推荐安装 `github:liwenjinchn/claude-desktop-zh`，只保留一个同源记录；npm latest 0.1.1 尚不含本仓库的 macOS 实现。
 
-应用会拒绝命令行上的调试/网络覆盖开关（例如 `--remote-debugging-port`、`--remote-debugging-pipe`），也有一套需要私钥的 `CLAUDE_CDP_AUTH` E2E 机制。本项目不使用、也不绕过这些校验；使用的是应用自己的开发者菜单。
+以下源码命令必须在仓库根目录执行；从已安装插件运行时，可将 `node bin/claude-3p-zh.mjs` 换成 `node "$HOME/.config/magpie/plugins/node_modules/magpie-claude-zh/bin/claude-3p-zh.mjs"`。
 
-## 前置条件
+```sh
+cd /path/to/claude-desktop-zh
+node bin/claude-3p-zh.mjs runtime-setup-status
+# 等待当前任务结束，并通过 ⌘Q 正常退出 Claude 后执行：
+node bin/claude-3p-zh.mjs runtime-setup
+```
 
-- macOS，Claude 已配置为第三方 Gateway 模式（与 Windows 插件相同的 3p 条件）。
-- Node.js 22 或以上。
-- Claude 的 `developer_settings.json` 中 `allowDevTools` 为 `true`。未开启时先正常退出 Claude，再运行 `runtime-setup`；不要在 Claude 运行时写这个文件。
-- 运行命令的终端（或安装插件后的 magpie）已获得「辅助功能」权限。工具需要用 System Events 点击 Claude 的开发者菜单；没有权限时可用 `--manual` 手动打开菜单。
-- 官方中文基础/动态目录。目录会按英文键集做覆盖率和占位符兼容检查，基础覆盖率低于 95% 时拒绝应用。
-- 单实例：同时运行多个 Claude.app 实例时工具会安全拒绝。
-- 自动加载依赖 magpie 保持运行，并且 magpie 已获得辅助功能权限；独立 CLI 不会在后台常驻。
+macOS 不会自动完成首次准备。`runtime-setup` 只在 Claude 完全退出后备份、校验并合并 `allowDevTools=true`；不会写入运行中的配置。watcher 遇到未准备状态会返回 `needs-setup`。
+
+给 **magpie** 授予界面控制权限：系统设置 → 隐私与安全 → 辅助功能；macOS 27.2 的名称为「设备控制和数据访问」。如系统询问，另允许 magpie 自动化 **System Events**。独立 CLI 自动操作时，权限应授予其终端。授权修好后重新保存插件设置或正常退出并重开 Claude，以触发重试。旧 `UI elements enabled` 全局标志可能与实际授权不符，工具以真实菜单操作的结果判断权限。
 
 ## 获取官方目录
 
-官方目录直接从 `claude.ai` 下载在部分网络会触发 Cloudflare 挑战（本机实测 `catalog fetch` 返回 403）。已导入的官方目录可以复用，也可以从浏览器或 Claude 的 Chromium 缓存导入：
+插件使用 `~/Library/Application Support/claude-desktop-zh/catalogs`。CLI 未指定路径时可能使用当前目录的 `.catalogs`；为避免两者分离，所有目录命令显式使用同一个 `--catalog-dir`：
 
 ```sh
-# 已有官方 JSON 时
-node bin/claude-3p-zh.mjs catalog import --locale zh-Hans --kind base --file zh-Hans.json
-node bin/claude-3p-zh.mjs catalog import --locale zh-Hans --kind dynamic --file zh-Hans.dynamic.json
+CATALOG_DIR="$HOME/Library/Application Support/claude-desktop-zh/catalogs"
 
-# 或从 Claude 的 Chromium block cache 读取
-node bin/claude-3p-zh.mjs catalog cache --locale zh-Hans
+# 已有合法取得的官方 JSON：
+node bin/claude-3p-zh.mjs catalog import --locale zh-Hans --kind base --file /path/to/zh-Hans.json --catalog-dir "$CATALOG_DIR"
+node bin/claude-3p-zh.mjs catalog import --locale zh-Hans --kind dynamic --file /path/to/zh-Hans.dynamic.json --catalog-dir "$CATALOG_DIR"
+
+# 或读取本机已有的 Claude Chromium 缓存：
+node bin/claude-3p-zh.mjs catalog cache --locale zh-Hans --catalog-dir "$CATALOG_DIR"
+
+# 或直接请求官方目录：
+node bin/claude-3p-zh.mjs catalog fetch --kind base --locale zh-Hans --catalog-dir "$CATALOG_DIR"
+node bin/claude-3p-zh.mjs catalog fetch --kind dynamic --locale zh-Hans --catalog-dir "$CATALOG_DIR"
 ```
 
-当前 3.6556.2 的校验结果：基础目录 37,201 个英文键中命中 36,304 个（97.59%，3 个占位符不兼容回退英文），动态目录 49/49。官方资源不入 Git，默认保存在 `~/Library/Application Support/claude-desktop-zh/catalogs`（插件安装时）。
+官方下载在部分网络会遇到 Cloudflare 403；插件不会绕过挑战。失败时需导入已取得的官方文件或可读缓存。基础目录按当前英文键集检查，覆盖率低于 95% 时拒绝；占位符不兼容的条目回退英文。官方资源不入 Git 或 npm 包，旧版本覆盖率不能作为新 Claude 版本已兼容的证明。
 
-## 使用
+## 日常使用
+
+保持 magpie 运行、插件启用和「启动时加载中文」开启，从原入口启动 Claude。macOS 后台监听对新 Claude 进程调用同一 CLI，不启动或强杀 Claude。此开关控制 macOS watcher；独立 CLI 不常驻。
+
+手动操作：
 
 ```sh
 node bin/claude-3p-zh.mjs mac-status
-node bin/claude-3p-zh.mjs runtime-setup-status
-node bin/claude-3p-zh.mjs mac-apply --locale zh-Hans
+node bin/claude-3p-zh.mjs mac-apply --locale zh-Hans --catalog-dir "$CATALOG_DIR"
 node bin/claude-3p-zh.mjs mac-restore
 ```
 
-- `mac-apply` 在已经运行的 3p 窗口上加载中文。它会打开主进程调试器、连接、注入、等待页面回执，然后关闭调试器。Claude 未运行时默认报错；可以加 `--launch` 让工具先打开 Claude。重复应用时应用可能已持有同一语言，`catalogRequestsServed` 可以为 0；只要 `messagesLocale` 为 `zh-Hans` 且未撤销，就视为成功。
-- `mac-restore` 调用页面运行时的 `restore()`，移除本次注入的 fetch/清单/语言覆盖并关闭调试器。它不保证把界面变回英文：如果 Claude 自己的配置已经是 `zh-Hans`，恢复后的界面可能仍显示中文；需要另外改应用语言设置。
-- `mac-status` 只读显示应用、3p、`allowDevTools`、调试器端口和最近一次结果。
-- `--manual`：跳过辅助功能自动化，要求你先在 Claude 中打开 Developer → Enable Main Process Debugger；工具仍会校验 inspector 的 PID 和可执行文件路径。
-- `--keep-inspector`：仅调试用。Node inspector 没有认证，使用完应立即关闭；正常命令会自动关闭。
+`mac-apply` 使用 Claude 自带 Developer → Enable Main Process Debugger，核对 inspector 的 PID/可执行文件身份，给 `app://localhost` 页面加载语言。源码还会核对页面语言模块 SHA256；未知锚点或漂移会停止。正常完成会关闭本次打开的调试端口。页面刷新（⌘R）后的窗口需工作台「立即加载中文」或 CLI 再次应用，不等于新进程启动。
 
-macOS 的加载是**每个窗口**的。从 magpie 安装并保持 magpie 运行时，后台监听会在每个新的 Claude 进程出现后自动调用 `mac-apply`，不需要每次手动运行；独立 CLI 不常驻。页面刷新（⌘R）不会自动重新加载，需要工作台按钮或 CLI 再次执行。
+`mac-restore` 移除本次 fetch/清单/语言覆盖；Claude 自己保存的语言若为中文，撤销后未必变回英文。`--manual` 要求用户先手动打开主进程调试器，再执行命令；`--keep-inspector` 仅供诊断，本地 Node inspector 无认证，不应长期保留。应用菜单可能顺带打开 Chrome 的 `chrome://inspect`，该标签可关闭。
 
-应用菜单里的 `Enable Main Process Debugger` 会顺带让 Claude 打开 Chrome 的 `chrome://inspect`。这是应用自身的行为；工具不会操作这个 Chrome 标签，看到时可以关闭。
+## 验证与边界
 
-## magpie 插件
+2026-10-28，本机 macOS 27.2、Claude 4.29.0、第三方 Gateway 已实测真实 magpie watcher：正常退出后原入口重新启动，无手动 apply 或切换页面，Code 主界面「新会话/新建/例程/自定义/选择环境」等显示中文，9229 端口关闭。此前 3.6556.2 的 CLI 注入、撤销再应用也有本机结果。
 
-插件的 macOS 路径启动一个轻量后台监听：保持 magpie 运行，打开 Claude 后会自动加载中文；「启动时加载中文」开关控制这个监听。监听只对新出现的 Claude 进程执行，不启动、不强杀 Claude。npm 上的 `magpie-claude-zh@0.1.1` 仍是 Windows 版本；要在 magpie 中使用 macOS 代码，先在插件页移除旧的 npm 条目，再从本仓库文件夹或 GitHub 仓库安装（同一插件只能保留一个启用条目）。首次、失败或刷新后，可在「语言资源维护」工作台点击「立即加载中文」或「撤销中文注入」。工作台和 CLI 调用同一套实现。
+该证据限于本机/当前版本/简体；尚不代表从零冷安装、繁体、所有页面、其他机器或后续更新通过。0.2.2 尚未发布至 npm。当前插件只处理语言，不提供官方账号版整套页面替换，也不改变账号身份或服务权限。
 
-macOS 上需要给 magpie 授予辅助功能权限；如果没有，使用 `--manual` 的手动流程。设置页的「启动时加载中文」控制 macOS 后台监听；Windows 用它控制首次准备和自动加载。
+工具只报告来源、页面 id 和语言状态，不输出聊天正文、标题或网关凭据。不改签名、Keychain、SIP、Gatekeeper 或系统权限；首次 `allowDevTools` 配置由用户正常退出后运行的事务处理。使用应用菜单，不使用命令行调试校验绕过。
 
-## 安全边界
+## 故障处理
 
-- 主进程调试器只监听 `127.0.0.1:9229`，但 Node inspector 本身没有认证；工具在注入后立即关闭它。不要在 `--keep-inspector` 状态下长期运行。
-- 工具不读取、不输出聊天正文、会话标题或网关凭据；结果只包含 `app://localhost` 来源、页面 id 和语言状态。
-- 不修改 `.app`、`app.asar`、签名、Keychain、SIP、Gatekeeper 或系统权限；不写 Claude 的 profile 配置。`allowDevTools` 的写入只在 Claude 正常退出后，由 `runtime-setup` 的事务完成。
-- 只对 `app://localhost` 的 3p 前端注入；登录页等其他来源不会被执行。
+- `RuntimeSetupRequired` / `needs-setup`：正常退出 Claude，执行 `runtime-setup`，再打开。
+- `needs-accessibility`：授权实际执行者 magpie/终端及其 System Events 自动化，之后重新保存设置或重开 Claude。
+- `discovery-failed`：检查应用位置、Claude 版本和插件版本；0.2.1 不支持 4.29.0 的归档资源布局。
+- 目录缺失/不兼容：确认 `--catalog-dir` 与插件一致，基础和动态目录均已导入，资源与当前英文键集兼容。
+- 9229 被其他 inspector 占用：关闭冲突调试器再试；工具不会向其他 PID 注入。
+- 状态成功但界面未更新：先核实可见页面；早期已打开的视图可能保留旧渲染，切换到其他页面后返回再检查。冷启动结果应单独验证。
 
-## 限制与故障处理
-
-- `RuntimeSetupRequired`：`allowDevTools` 未开启。正常退出 Claude 后运行 `runtime-setup`，再打开 Claude。
-- `Accessibility permission is required`：到「系统设置 → 隐私与安全性 → 辅助功能」给终端或 magpie 授权；或使用 `--manual`。
-- `Port 9229 is already used by another Node inspector`：先关闭占用端口/Claude 的旧调试器。工具不会对不匹配 PID 的 inspector 注入。
-- 早期实现漏挂了 CDP WebSocket 的响应回调，导致所有 `Runtime.enable`/求值都报超时；现在已修复消息分发，并给页面激活和主进程求值都加了超时。如果仍遇到旧会话留下的无响应 inspector，正常退出并重新打开 Claude 即可清掉。
-- 应用更新后语言运行时文件或 store 导出可能变化；`mac-apply` 每次重新构建并以 SHA-256 校验，漂移会停止而不是猜测。
-- 菜单标签当前识别英文 `Enable Main Process Debugger` 和中文「启用主进程调试器」；其他界面语言需要补充标签。
-- 繁体 `zh-Hant` 已有同一路径的代码支持，但本机只实测了简体。
-
-## 历史说明：签名限制
-
-旧版文档记录过 `.app` 内新增 JSON 或修改外置 JS 会破坏资源签名，且 `ElectronAsarIntegrity` 覆盖 ASAR header hash。这也是本项目不走「复制应用后改文件」的原因；现在的运行时路径不需要触碰这些内容。Apple TN2206 和 Electron ASAR integrity 的参考仍然有效。
-
-## 参考项目
-
-- [javaht/claude-desktop-zh-cn](https://github.com/javaht/claude-desktop-zh-cn)，语言注册结构参考；其 macOS 方案需要重签。
-- [wangbigtiger33-boop/claude-desktop-chinese-localization](https://github.com/wangbigtiger33-boop/claude-desktop-chinese-localization)，JSON/ASAR 注入方案。
-- [ooac/Claude-desk-cn](https://github.com/ooac/Claude-desk-cn)，JSON、菜单资源和重签方案。
-
-本项目不复制这些项目的实现源码，也不继承模型校验修改、Frida 注入、更新接管或其他网关功能。
+[安装步骤](first-install.md) · [插件设置](magpie.md) · [反馈问题](https://github.com/liwenjinchn/claude-desktop-zh/issues)

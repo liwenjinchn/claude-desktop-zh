@@ -43,16 +43,17 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
   const registry = dependencies.registrySnapshot ?? registrySnapshot;
   const macStateDirectory = dependencies.macStateDirectory ?? macLayout().stateDirectory;
   const macPids = dependencies.macPids ?? (() => {
-    try { return claudePids(findClaudeApp(options.sourceDirectory)); } catch { return []; }
+    return claudePids(findClaudeApp(options.sourceDirectory));
   });
   const macLastApplied = dependencies.macLastApplied ?? (() => {
     try { return readJSON(path.join(macStateDirectory, 'last-apply.json')); } catch { return null; }
   });
-  const macApply = dependencies.macApply ?? (locale => controller.execute('mac-apply', 'mac-apply', { locale }));
+  const macApply = dependencies.macApply ?? ((locale, runtimeOwner, runtimeOwnerInstance) => controller.execute('mac-apply', 'mac-apply', { locale, runtimeOwner, runtimeOwnerInstance }));
   const macPollMs = dependencies.macPollMs ?? 3000;
   let current = { state: 'not-started', locale: options.locale ?? 'zh-Hans', automaticNextLaunch: false };
   let starting, child, stopFile, stateFile, stopRequested = false;
   const macOwner = randomUUID();
+  let macRegistry = null;
   let macTimer = null, macApplying = false, macSeenPid = null, macAttempts = 0, macStateFile = null, macLockFile = null;
   function publish(next) {
     const previous = current;
@@ -83,6 +84,7 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
     }
   }
   function stop() {
+    const superseded = platform === 'darwin' && macOwnerChanged();
     stopRequested = true;
     if (macTimer) { clearInterval(macTimer); macTimer = null; }
     if (macLockFile) {
@@ -92,11 +94,16 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
       } catch {}
     }
     if (stopFile) fs.writeFileSync(stopFile, 'Plugin requested normal watcher stop.\n');
+    if (superseded) { current = { ...current, state: 'stopped', automaticNextLaunch: false }; return; }
     publish({ ...current, state: platform === 'darwin' ? 'stopped' : 'stopping', automaticNextLaunch: false });
   }
   function macOwnerChanged() {
     if (!macLockFile) return false;
-    try { return readJSON(macLockFile)?.instance !== macOwner; } catch { return false; }
+    try { return readJSON(macLockFile)?.instance !== macOwner; } catch { return true; }
+  }
+  function macRegistryChanged() {
+    try { return !macRegistry || sha256(fs.readFileSync(macRegistry.file)) !== macRegistry.hash; }
+    catch { return true; }
   }
   async function macTick() {
     if (stopRequested || macApplying) return;
@@ -106,15 +113,19 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
       if (macTimer) { clearInterval(macTimer); macTimer = null; }
       return;
     }
+    if (macRegistryChanged()) { stop(); return; }
     let pids;
-    try { pids = macPids() || []; } catch { pids = []; }
+    try { pids = macPids() || []; } catch {
+      publish({ ...current, state: 'discovery-failed', automaticNextLaunch: true, note: '无法识别 Claude 安装资源；请检查版本兼容性。' });
+      return;
+    }
     const pid = pids[0] ?? null;
     if (!pid) {
       if (macSeenPid !== null) { macSeenPid = null; macAttempts = 0; }
       if (current.state !== 'waiting-for-claude') publish({ ...current, state: 'waiting-for-claude', automaticNextLaunch: true, appliedPid: null });
       return;
     }
-    if (pid !== macSeenPid) { macSeenPid = pid; macAttempts = 0; }
+    if (pid !== macSeenPid) { macSeenPid = pid; macAttempts = 0; current = { ...current, note: undefined, lastResult: undefined }; }
     if (current.state === 'Applied' && current.appliedPid === pid) return;
     if (macAttempts >= 8) {
       if (current.state !== 'apply-failed' && current.state !== 'needs-accessibility' && current.state !== 'needs-setup') {
@@ -124,15 +135,16 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
     }
     if (macAttempts === 0) {
       const last = macLastApplied();
-      if (last && last.state === 'Applied' && last.pid === pid) {
+      if (last && last.state === 'Applied' && last.pid === pid && last.locale === localeValue(options.locale)) {
         publish({ ...current, state: 'Applied', automaticNextLaunch: true, appliedPid: pid, lastResult: 'already-applied' });
         return;
       }
     }
     macApplying = true;
     try {
-      const result = await macApply(localeValue(options.locale));
-      if (stopRequested) return;
+      const result = await macApply(localeValue(options.locale), macLockFile, macOwner);
+      if (stopRequested || macOwnerChanged()) return;
+      if (macRegistryChanged()) { stop(); return; }
       if (result?.state === 'RuntimeSetupRequired') {
         macAttempts = 8;
         publish({ ...current, state: 'needs-setup', automaticNextLaunch: true, appliedPid: pid });
@@ -142,7 +154,8 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
       const state = result?.state === 'PartiallyApplied' ? 'PartiallyApplied' : result?.state === 'Applied' ? 'Applied' : 'apply-failed';
       publish({ ...current, state, automaticNextLaunch: true, appliedPid: pid, lastResult: result?.state, pages: Array.isArray(result?.pages) ? result.pages.length : 0 });
     } catch (error) {
-      if (stopRequested) return;
+      if (stopRequested || macOwnerChanged()) return;
+      if (macRegistryChanged()) { stop(); return; }
       const message = String(error?.message || error);
       if (/Accessibility permission/i.test(message)) {
         macAttempts = 8;
@@ -163,12 +176,17 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
     }
     let locale;
     try { locale = localeValue(options.locale); } catch { current = { ...current, state: 'disabled' }; return current; }
+    if (!input?.directory || !path.isAbsolute(input.directory)) {
+      current = { ...current, state: 'unsupported-host', automaticNextLaunch: false }; return current;
+    }
+    try { macRegistry = registry(input.directory, options); }
+    catch { current = { ...current, state: 'owner-changed', automaticNextLaunch: false }; return current; }
     macStateFile = path.join(macStateDirectory, 'watcher.json');
     macLockFile = path.join(macStateDirectory, 'watcher.lock');
     try {
       fs.mkdirSync(path.dirname(macStateFile), { recursive: true });
-      fs.writeFileSync(macLockFile, JSON.stringify({ instance: macOwner, pid: process.pid, startedAt: new Date().toISOString() }, null, 2));
-    } catch {}
+      fs.writeFileSync(macLockFile, JSON.stringify({ instance: macOwner, pid: process.pid, startedAt: new Date().toISOString(), registryFile: macRegistry.file, registrySha256: macRegistry.hash }, null, 2));
+    } catch { current = { ...current, state: 'preparation-failed', automaticNextLaunch: false }; return current; }
     publish({ ...current, state: 'watching', locale, automaticNextLaunch: true, appliedPid: macSeenPid });
     macTimer = setInterval(() => { void macTick(); }, macPollMs);
     macTimer.unref?.();

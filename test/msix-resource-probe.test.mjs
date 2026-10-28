@@ -17,7 +17,7 @@ test('resource package refuses executable content, traversal and Windows path al
 });
 
 test('Windows ZIP and XML readers recover a multi-block resource and its block map', { skip: process.platform !== 'win32' }, t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), '3p-zh-resource-package-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), '3p-zh-resource-package-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const payload = Buffer.from('中文 resource\n'.repeat(7000)), packageFile = path.join(root, 'fixture.msix');
   fs.writeFileSync(packageFile, resourcePackage(new Map([['AppxManifest.xml', '<Package/>'], ['app/resources/zh-Hans.json', payload]])));

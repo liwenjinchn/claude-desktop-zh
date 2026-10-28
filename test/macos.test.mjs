@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import {
   applyMacLocalization, buildMacActivationCode, claudePids, findClaudeApp,
-  macLayout, readDeveloperSettings, RESTORE_CODE, waitForInspectorTarget,
+  macLayout, openMainProcessInspector, readDeveloperSettings, RESTORE_CODE, waitForInspectorTarget,
 } from '../lib/macos.mjs';
 
 const darwin = { skip: process.platform !== 'darwin' };
@@ -35,18 +35,20 @@ test('findClaudeApp accepts a Mac bundle and rejects unrelated directories', t =
 });
 
 test('claudePids matches only the main executable, not helpers or arguments', () => {
+  const app = path.resolve('/Applications/Claude.app');
   const output = [
-    '  111 /Applications/Claude.app/Contents/MacOS/Claude',
-    '  222 /Applications/Claude.app/Contents/Helpers/disclaimer',
-    '  333 /Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper',
-    '  444 /Applications/Claude.app/Contents/MacOS/Claude Helper',
+    `  111 ${path.join(app, 'Contents/MacOS/Claude')}`,
+    `  222 ${path.join(app, 'Contents/Helpers/disclaimer')}`,
+    `  333 ${path.join(app, 'Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper')}`,
+    `  444 ${path.join(app, 'Contents/MacOS/Claude Helper')}`,
   ].join('\n');
   const exec = () => output;
   assert.deepEqual(claudePids('/Applications/Claude.app', exec), [111]);
 });
 
 test('inspector target must match the expected PID and executable', async () => {
-  const target = { type: 'node', title: '/Applications/Claude.app/Contents/MacOS/Claude[123]', webSocketDebuggerUrl: 'ws://127.0.0.1:9229/x' };
+  const executable = path.resolve('/Applications/Claude.app/Contents/MacOS/Claude');
+  const target = { type: 'node', title: `${executable}[123]`, webSocketDebuggerUrl: 'ws://127.0.0.1:9229/x' };
   const fetchImpl = async () => ({ ok: true, json: async () => [target] });
   assert.equal((await waitForInspectorTarget(123, '/Applications/Claude.app/Contents/MacOS/Claude', { fetchImpl, timeoutMs: 200 })).webSocketDebuggerUrl, target.webSocketDebuggerUrl);
   const emptyFetch = async () => ({ ok: true, json: async () => [] });
@@ -159,4 +161,23 @@ test('macOS partial page failures stay visible and all failures throw after reco
   await assert.rejects(applyMacLocalization({ stateDirectory }, failing.deps), /Chinese was not applied/);
   const last = JSON.parse(fs.readFileSync(path.join(stateDirectory, 'last-apply.json')));
   assert.equal(last.state, 'Failed');
+});
+
+
+test('menu automation checks the actual operation instead of the legacy global accessibility flag', async () => {
+  let calls = 0;
+  await assert.rejects(openMainProcessInspector(123, { port: 65439, exec: (command, args) => {
+    calls++;
+    assert.equal(command, 'osascript');
+    assert.equal(args[1].includes('get UI elements enabled'), false);
+    assert.equal(args[1].includes('Enable Main Process Debugger'), true);
+    throw Object.assign(new Error('denied'), { stderr: 'osascript is not allowed assistive access.' });
+  } }), /Accessibility permission/);
+  assert.equal(calls, 1);
+});
+
+
+test('activation does not skip a control whose messages are still in another language', async () => {
+  const runtime = { status: () => ({ locale: 'zh-Hans', messagesLocale: 'en-US', restored: false }), restore: () => { throw new Error('stale control restored'); } };
+  await assert.rejects(vm.runInNewContext(buildMacActivationCode({ locale: 'zh-Hans', base: {}, dynamic: {} }), { claudeChineseRuntime: runtime }), /stale control restored/);
 });

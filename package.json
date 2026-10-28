@@ -1,6 +1,6 @@
 {
   "name": "magpie-claude-zh",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "为原版 Claude Desktop 的第三方模式加载官方中文界面，保留原来的设置、会话和历史。默认简体中文。",
   "type": "module",
   "main": "./integrations/magpie/server.mjs",
@@ -20,11 +20,11 @@
   "author": "polang233",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/polang233/claude-desktop-zh.git"
+    "url": "git+https://github.com/liwenjinchn/claude-desktop-zh.git"
   },
-  "homepage": "https://github.com/polang233/claude-desktop-zh#readme",
+  "homepage": "https://github.com/liwenjinchn/claude-desktop-zh#readme",
   "bugs": {
-    "url": "https://github.com/polang233/claude-desktop-zh/issues"
+    "url": "https://github.com/liwenjinchn/claude-desktop-zh/issues"
   },
   "keywords": [
     "magpie",
@@ -58,9 +58,16 @@
     "scripts/check-package.mjs",
     "docs/first-install.md",
     "docs/magpie.md",
+    "docs/macos.md",
     "docs/images/claude-settings-zh.png",
     "README.md",
     "LICENSE",
     "NOTICE"
+  ],
+  "contributors": [
+    {
+      "name": "liwenjinchn",
+      "url": "https://github.com/liwenjinchn"
+    }
   ]
 }

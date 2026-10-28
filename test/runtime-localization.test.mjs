@@ -10,7 +10,7 @@ import { sha256 } from '../lib/common.mjs';
 import { activateRuntimeCatalog, buildRuntimeLocalization, runtimeAutomationSource, runtimePickerAutomationSource } from '../scripts/build-runtime-localization.mjs';
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zh-runtime-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'zh-runtime-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const source = path.join(root, 'app'), catalogs = path.join(root, 'catalogs');
   const resources = path.join(source, 'resources'), assets = path.join(resources, 'ion-dist/assets');

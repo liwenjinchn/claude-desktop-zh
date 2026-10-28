@@ -8,7 +8,7 @@ import { sha256 } from '../lib/common.mjs';
 
 test('parent-bound watcher stops naturally when registry changes, with an inert app and no UI attempts',
   { skip: process.platform !== 'win32', timeout: 30000 }, async t => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zh-owner-'));
+    const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'zh-owner-'));
     const registry = path.join(root, 'plugins.json'), payload = path.join(root, 'payload.js'), manifest = path.join(root, 'bundle.json');
     const stop = path.join(root, 'stop');
     fs.writeFileSync(registry, '{"plugins":[]}');

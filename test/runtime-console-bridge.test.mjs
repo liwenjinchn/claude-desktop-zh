@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { sha256 } from '../lib/common.mjs';
 
 test('Windows adapter compiles and refuses decoy UI targets in self-test without touching UI', { skip: process.platform !== 'win32' }, t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zh-console-bridge-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'zh-console-bridge-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const payload = path.join(root, 'payload.js'), manifest = path.join(root, 'bundle.json');
   fs.writeFileSync(payload, 'inert build-only fixture');

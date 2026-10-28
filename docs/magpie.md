@@ -1,45 +1,44 @@
 # 插件设置与常见问题
 
-在 magpie 中打开「Claude 中文」插件设置页。Windows 使用自动首次准备；macOS 在「语言资源维护」工作台中点击「立即加载中文」。
+当前安装路径为 `github:liwenjinchn/claude-desktop-zh` 或本仓库目录；同源插件只保留一个安装记录。macOS 首次准备见[安装步骤](first-install.md)。
 
 | 设置 | 用法 |
 | --- | --- |
-| 语言 | 默认简体，可选择繁体；保存后用于下次启动 |
-| 启动时加载中文 | Windows：开启后自动为新打开的 Claude 加载中文；macOS 不依赖此项 |
-| 保存设置 | 保存本页选择 |
+| 语言 | 默认简体，也可选择繁体；繁体尚未完成本机实机验收 |
+| 启动时加载中文 | macOS：控制后台监听；Windows：控制首次准备及自动加载 |
+| 保存设置 | 将偏好交给新插件宿主；当前窗口不会因此自动撤销已有语言 |
 
-使用时保持 magpie 运行，Claude 从原来的入口打开即可。
+保持 magpie 运行，从原来的 Claude 入口打开。macOS watcher 处理新 Claude 进程，不启动或强杀应用；页面刷新后，通过「语言资源维护 → 立即加载中文」或 CLI 再次加载。「撤销中文注入」移除本次内存覆盖。
 
-## macOS
+## macOS 前置条件
 
-1. 给 magpie 授予「辅助功能」权限，并保持 magpie 运行。
-2. 打开 Claude 的第三方 Gateway 窗口。插件会监听新的 Claude 进程，自动加载中文；不需要每次运行命令。
-3. 首次安装、自动加载失败或页面刷新（⌘R）后，可在「语言资源维护」工作台点击「立即加载中文」；点击「撤销中文注入」可移除本次运行时覆盖。
+- Claude 使用第三方 Gateway，已在完全退出时运行 `runtime-setup` 开启 `allowDevTools`。
+- 给 magpie 授予界面控制及 System Events 自动化权限；只给终端授权不会替 magpie 授权。
+- 官方目录与插件使用相同的 `~/Library/Application Support/claude-desktop-zh/catalogs`，导入命令显式加 `--catalog-dir`。
 
-「启动时加载中文」开关控制 macOS 的后台监听；关闭后只保留手动按钮。加载通过 Claude 自己的开发者主进程调试器完成，不修改应用、签名或网关；结束后会关闭调试器。需要 Claude 已开启 `allowDevTools`，并给 magpie 授予辅助功能权限。没有权限时可手动打开 Developer → Enable Main Process Debugger，再使用 CLI 的 `mac-apply --manual`。
+没有自动化权限时，可以手动打开 Developer → Enable Main Process Debugger，再从源码目录执行 `node bin/claude-3p-zh.mjs mac-apply --manual --catalog-dir "$HOME/Library/Application Support/claude-desktop-zh/catalogs"`。插件使用应用自带菜单，正常完成后关闭调试端口，不修改应用或签名。
 
-macOS 加载是每个窗口生效；退出 Claude 再打开会自动重新加载，页面刷新不会。应用菜单的调试器操作可能顺带打开 Chrome 的 `chrome://inspect`，关闭该标签即可。
+## 查看状态与重试
 
-## 查看插件版本
+可通过插件工具 `claude_zh_sync_status` 查看状态：
 
-已安装版本在 magpie 的插件详情中查看，当前公开版本见 [npm](https://www.npmjs.com/package/magpie-claude-zh)，版本说明见 [GitHub Releases](https://github.com/polang233/claude-desktop-zh/releases)。反馈问题时，请附上插件版本、Claude 版本和加载状态。
+| 状态 | 含义及处理 |
+| --- | --- |
+| waiting-for-normal-exit | Windows 等待用户正常退出应用 |
+| waiting-for-claude | 等待 Claude 进程或窗口就绪 |
+| needs-setup | 正常退出后运行 `runtime-setup`，再打开 |
+| needs-accessibility | 为实际运行插件的 magpie 授予权限 |
+| discovery-failed | 安装资源无法识别；检查 Claude 版本兼容性 |
+| Applied | 已收到语言加载回执；仍应核实可见页面 |
 
-## 没有出现准备完成通知
+修复条件后重新保存插件设置，或正常退出后重开 Claude。若停在失败状态，附上插件版本、Claude 版本和状态反馈；不要提供网关密钥或聊天内容。
 
-先确认 Claude 已通过「文件 → 退出」完全退出。关闭窗口可能只是缩到托盘。Windows 通知也可能被系统通知设置隐藏。
+## 更新、关闭与版本
 
-可在 magpie 中通过插件工具 claude_zh_sync_status 查看状态：waiting-for-normal-exit 表示仍在等待退出，watching 表示已准备好，Applied 表示本次中文已加载。
+macOS 保存设置后由新宿主接管监听；关闭自动加载或停用插件影响后续加载，当前窗口已有的中文需通过工作台撤销或随应用退出清除。Windows 设置从下次启动生效。
 
-## 启动时弹出窗口
+Claude 更新可能改变资源目录、语言模块或导出；校验失败会停止。4.29.0 的 `ion-dist.asar` 支持从源码 0.2.2 开始提供，旧 v0.2.1 不含此修复。
 
-加载中文时会短暂打开调试窗口和文件选择框。请保持 Claude 在前台，等待它们自动收起。如果停住，保留现场并记录插件状态，便于排查。
+已安装版本以 magpie 插件详情为准。[GitHub Releases](https://github.com/liwenjinchn/claude-desktop-zh/releases) 与 [npm](https://www.npmjs.com/package/magpie-claude-zh) 是独立分发来源；截至 2026-10-28 npm latest 为原作者 Windows 版 0.1.1。应用自带调试器可能打开 Chrome 的 `chrome://inspect`，该标签可关闭。
 
-## Claude 更新后没有加载中文
-
-将插件关闭再启用，让它重新检查语言资源。资源暂不兼容时，请附上 Claude 版本和插件状态反馈。
-
-## 调整或停用
-
-Windows：语言选择和自动加载开关保存后从下次启动生效，当前窗口保持现状。macOS：保存后新宿主会接管后台监听；当前窗口如果还没有中文，可在工作台点击「立即加载中文」。
-
-[安装步骤](first-install.md) · [返回 README](../README.md)
+[macOS 说明](macos.md) · [反馈问题](https://github.com/liwenjinchn/claude-desktop-zh/issues) · [返回 README](../README.md)

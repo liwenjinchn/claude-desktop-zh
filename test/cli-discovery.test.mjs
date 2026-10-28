@@ -10,7 +10,7 @@ import { sha256 } from '../lib/common.mjs';
 const cli = fileURLToPath(new URL('../bin/claude-3p-zh.mjs', import.meta.url));
 const profileId = '00000000-0000-4000-8000-3369707a6801';
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), '3p-zh-cli-discovery-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), '3p-zh-cli-discovery-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const log = path.join(root, 'process-calls.jsonl');
   const preload = path.join(root, 'isolate-host.mjs');

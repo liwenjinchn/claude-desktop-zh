@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 test('Windows PowerShell classifier handles orphan workers, unreadable fields and process identity', { skip: process.platform !== 'win32' }, t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), '3p-zh-probe-fixture-'));
+  const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), '3p-zh-probe-fixture-'));
   t.after(() => { assert(directory.startsWith(os.tmpdir())); fs.rmSync(directory, { recursive: true, force: true }); });
   const log = path.join(directory, 'fixture.log'), fd = fs.openSync(log, 'wx');
   let result;

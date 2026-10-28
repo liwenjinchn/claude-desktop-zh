@@ -3,6 +3,7 @@ on: [push, pull_request]
 jobs:
   node:
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}

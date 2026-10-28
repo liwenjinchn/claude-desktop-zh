@@ -6,7 +6,7 @@ import path from 'node:path';
 import { setupRuntime, restoreRuntimeSetup, runtimeSetupStatus, windowsSetupGuard } from '../lib/runtime-setup.mjs';
 
 function fixture(t, settings) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zh-first-install-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'zh-first-install-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const profile = path.join(root, 'profile'), state = path.join(root, 'state');
   fs.mkdirSync(path.join(profile, 'configLibrary'), { recursive: true });

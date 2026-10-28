@@ -8,7 +8,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import { discover, discoverInstall, discoverProfiles, discoverCaches, defaultLayout } from '../lib/discover.mjs';
 
 function home(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), '3p-zh-discover-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), '3p-zh-discover-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const env = { LOCALAPPDATA: path.join(root, 'Local'), APPDATA: path.join(root, 'Roaming'), ProgramFiles: path.join(root, 'Program Files'), USERPROFILE: root };
   return { root, env };

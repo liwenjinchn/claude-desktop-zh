@@ -36,7 +36,7 @@ export function createController(options = {}, runProcess = runCLI) {
   const catalogArgs = () => ['--catalog-dir', catalog];
   const profileArgs = () => optional('--profile-dir', options.profileDirectory);
   const sourceArgs = () => optional('--source', options.sourceDirectory);
-  async function command(action, language = locale()) {
+  async function command(action, language = locale(), runtimeOwner, runtimeOwnerInstance) {
     let args;
     switch (action) {
       case 'discover': args = ['discover', ...sourceArgs(), ...profileArgs(), '--root', root, ...catalogArgs()]; break;
@@ -50,7 +50,7 @@ export function createController(options = {}, runProcess = runCLI) {
       case 'switch': args = mode === 'original' ? ['original-switch', '--state-dir', stateDirectory, '--locale', language, ...catalogArgs()] : ['switch', '--root', root, '--locale', language, ...catalogArgs()]; break;
       case 'restore': args = mode === 'original' ? ['original-restore', '--state-dir', stateDirectory] : ['restore', '--root', root]; break;
       case 'launch': args = ['launch', '--root', root]; break;
-      case 'mac-apply': args = ['mac-apply', ...sourceArgs(), '--locale', language, ...catalogArgs()]; break;
+      case 'mac-apply': args = ['mac-apply', ...sourceArgs(), '--locale', language, ...catalogArgs(), ...optional('--mac-owner', runtimeOwner), ...optional('--mac-owner-instance', runtimeOwnerInstance)]; break;
       case 'mac-restore': args = ['mac-restore', ...sourceArgs()]; break;
       default: throw new Error('Unsupported action.');
     }
@@ -88,18 +88,18 @@ export function createController(options = {}, runProcess = runCLI) {
         }
       }
       if (action === 'mac-apply') {
-        try { return await command(action, language); }
+        try { return await command(action, language, selection.runtimeOwner, selection.runtimeOwnerInstance); }
         catch (error) {
           if (!/^(?:Error: )?Missing compatible zh-Han[st] base\/dynamic catalogs\./.test(error.message)) throw error;
           try { await command('import-cache', language); }
           catch { /* Fall through to the official URL, which may be blocked by a challenge. */ }
-          try { return await command(action, language); }
+          try { return await command(action, language, selection.runtimeOwner, selection.runtimeOwnerInstance); }
           catch (missing) {
             if (!/^(?:Error: )?Missing compatible zh-Han[st] base\/dynamic catalogs\./.test(missing.message)) throw missing;
             for (const kind of ['base', 'dynamic']) {
               await runProcess(configuration(), ['catalog', 'fetch', '--kind', kind, '--locale', language, '--catalog-dir', catalog]);
             }
-            return await command(action, language);
+            return await command(action, language, selection.runtimeOwner, selection.runtimeOwnerInstance);
           }
         }
       }
@@ -113,7 +113,7 @@ export function createController(options = {}, runProcess = runCLI) {
           return await command('switch', language);
         }
       }
-      return await command(action, language);
+      return await command(action, language, selection.runtimeOwner, selection.runtimeOwnerInstance);
     } finally { busy = false; }
   }
   async function sync() {

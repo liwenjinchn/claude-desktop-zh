@@ -67,7 +67,7 @@ function argumentsOf(argv) {
     if (options[key] !== undefined || !argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error('Flag requires one value: --' + key);
     options[key] = argv[++i];
   }
-  const valid = new Set(['source', 'locale', 'catalog-dir', 'kind', 'file', 'url', 'cache', 'destination', 'gateway-profile', 'gateway-url', 'gateway-key-file', 'root', 'profile-dir', 'state-dir', 'output', 'runtime-owner', ...boolean]);
+  const valid = new Set(['source', 'locale', 'catalog-dir', 'kind', 'file', 'url', 'cache', 'destination', 'gateway-profile', 'gateway-url', 'gateway-key-file', 'root', 'profile-dir', 'state-dir', 'output', 'runtime-owner', 'mac-owner', 'mac-owner-instance', ...boolean]);
   for (const key of Object.keys(options)) if (!valid.has(key)) throw new Error('Unknown flag: --' + key);
   return { words, options };
 }
@@ -99,7 +99,7 @@ async function locked(root, callback) {
 }
 async function main() {
   const { words, options } = argumentsOf(process.argv.slice(2)), [command, subcommand] = words;
-  const macOptions = () => ({ source: options.source, locale: options.locale, catalogDirectory: options['catalog-dir'], stateDirectory: options['state-dir'], launch: options.launch === true, manual: options.manual === true, keepInspector: options['keep-inspector'] === true });
+  const macOptions = () => ({ source: options.source, locale: options.locale, catalogDirectory: options['catalog-dir'], stateDirectory: options['state-dir'], launch: options.launch === true, manual: options.manual === true, keepInspector: options['keep-inspector'] === true, runtimeOwner: options['mac-owner'], runtimeOwnerInstance: options['mac-owner-instance'] });
   if (!command || command === 'help') { console.log(help); return; }
   if (words.length > (command === 'catalog' ? 2 : 1)) throw new Error('Unexpected positional argument.');
   const directory = () => path.resolve(options['catalog-dir'] ?? '.catalogs');

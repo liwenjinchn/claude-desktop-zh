@@ -13,7 +13,7 @@ import { sha256 } from '../lib/common.mjs';
 const project = fileURLToPath(new URL('..', import.meta.url));
 const plugin = fileURLToPath(new URL('../integrations/magpie', import.meta.url));
 function fixture(t, options = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zh-host-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'zh-host-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const registry = path.join(root, 'plugins.json');
   fs.writeFileSync(registry, JSON.stringify({ plugins: [{ spec: plugin, options }] }));

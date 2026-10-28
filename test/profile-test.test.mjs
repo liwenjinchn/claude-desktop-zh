@@ -10,8 +10,8 @@ import { writeJSON } from '../lib/common.mjs';
 
 const quiet = () => ({ schema: 1, ok: true, blockedCount: 0, unknownCount: 0, registry: { protocol: 'a'.repeat(64), startup: 'b'.repeat(64) } });
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), '3p-zh-tester-'));
-  t.after(() => { assert(root.startsWith(os.tmpdir())); fs.rmSync(root, { recursive: true, force: true }); });
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), '3p-zh-tester-'));
+  t.after(() => { assert(root.startsWith(fs.realpathSync(os.tmpdir()))); fs.rmSync(root, { recursive: true, force: true }); });
   const options = { mode: 'Snapshot', source: path.join(root, 'source'), profile: path.join(root, 'profile'), catalogDirectory: path.join(root, 'catalogs'), outputParent: path.join(root, 'results'), locale: 'zh-Hans', timeoutSeconds: 5, pollSeconds: 1, stableSeconds: 2 };
   for (const key of ['source', 'profile', 'catalogDirectory']) fs.mkdirSync(options[key]);
   fs.writeFileSync(path.join(options.source, 'claude.exe'), 'fixture-only, not executable');

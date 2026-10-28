@@ -1,5 +1,36 @@
 # 开发交接
 
+## 0.2.2 候选：发布审查整改与布局调查
+
+用户已授权修复后提交、推送至 liwenjinchn/claude-desktop-zh。保留当前原作者 origin；实际推送使用 mac 远端，不推上游。两份版本号为 0.2.2，元数据指向当前仓库，作者/许可保留。npm 当前 latest 0.1.1、公开写入者仅 polang233，本机未认证，不发布 npm，不移动历史 v0.2.1 标签。
+
+发布审查整改：补齐 Mac 首次手动 runtime-setup 与相同 catalog-dir 指引、文档/安装来源/开关说明、Mac 必需打包文件与隔离安装后 watcher 烟测、当前 GitHub spec。CI 夹具统一物理临时目录，Windows 路径与 profile 身份模拟作平台适配，矩阵 fail-fast=false，生产符号链接保护未放宽。
+
+Mac watcher 新增 registry 字节哈希及唯一启用记录校验，停用/设置变化后停止；CLI 绑定 watcher 实例令牌，并在宿主/主进程页面等待后再次复核，旧宿主不得在接管后发起新注入。补旧宿主忙碌、设置更改/停用、主进程状态等待中撤销的回归。消息语言未确认时不能跳过激活，恢复全部失败会记录 Failed 并报错，部分失败为 PartiallyRestored。
+
+最终本机 npm test：181 项，160 通过、21 跳过、0 失败。当前候选 tarball 的 SHA256 为 eac4655c503ca4630f5133c0f1a9ec8a97060d59c21658fbc01a37241205ec34；包与同源安装文件在本机验收，产物/分析保留于忽略的 .handoff。真实 Magpie：自动加载关闭时重开 Claude，前端英文、last-apply 未更新；重新启用后自动注入成功，调试端口关闭。最终候选再次正常退出后原入口冷启动（新 PID61134），真实 watcher 返回 Applied；CUA 确认 coldLaunch=1 的导航与输入区中文，9229 无监听。远端 CI 以推送后实际结果为准。
+
+布局需求澄清：保留第三方 API，加载官方账号版前端。当前调查没有可交付的整套资源替换路径：本地来源、导航限制及账号后端有独立分支。未修改部署身份、网关、会话或全部图标。详见 docs/layout-feasibility.md；不把语言修复当作布局完成。
+
+## 2026-10-28 晚间最终结果：本机自动中文通过
+
+以下“等待权限”状态已被此结果覆盖。用户明确授权为 Magpie 开启辅助功能并自行完成触控 ID。macOS 27.2 设置项名为“设备控制和数据访问”；已确认 magpie=on，自动化 → System Events 原本也为 on。正常重启 Magpie 后，旧 `System Events UI elements enabled` 仍返回 false，实际菜单操作却可成功。因此取消该旧全局标志的提前拒绝，改为执行真实菜单操作并将系统权限拒绝显式归为 Accessibility 错误；没有绕过系统授权。
+
+最终实测正常退出 Claude、确认 watcher 等待，再从原入口重新打开（新 PID43239），全程没有手动 apply 或切换 Code/Cowork 页面。真实 Magpie watcher 自动应用，last-apply 时间 2026-10-28T15:34:03Z、inspectorOpened=true、2 次目录请求、zh-Hans；随后 CUA 确认 coldLaunch=1 的 Code 主界面「新会话/新建/例程/自定义/选择环境/开启自动模式/提示词」均为中文；9229 无监听。当前 Magpie watcher 保持 Applied，Claude 保持中文。新增实际菜单权限检查回归后全仓 173 项：152 通过、21 跳过、0 失败。仅限当前机器/版本/简体的实测，不代表其他版本、繁体或所有页面已验收。
+
+本地源码修改和已安装插件修改已一致保留，依然未提交/推送/发布，插件升级会覆盖本地修复；公开 main 仍为 8b75df6。
+
+## 2026-10-28 晚间：Claude 4.29.0 ASAR 布局修复（本地，未提交/推送）
+
+用户报告已安装插件无法启动时自动中文。远端 liwenjinchn/claude-desktop-zh 只有 main，HEAD 8b75df6；现有 0.2.1 已含 Mac watcher，plugins.json 的 runtimeAutoLoad=true，宿主也存活。当前 Claude 已更新到 4.29.0，其前端从外部 ion-dist 目录改为 ion-dist.asar；findClaudeApp 因旧目录条件失败，watcher 将该错误吞成 waiting-for-claude。
+
+新增 lib/asar-reader.mjs，按 Electron ASAR 格式只读 packed JS/英文目录，验证大小、范围、SHA256，拒绝链接/unpacked 前端文件，不解包或修改应用。runtimeSpec 对归档布局沿用官方目录覆盖率/占位符检查，并定位唯一运行时及语言 store 导出，页面仍校验模块 SHA256。macOS 发现接受归档布局，watcher 识别失败改为 discovery-failed。补归档与 watcher 回归；全仓 172 项，151 通过、21 跳过、0 失败；npm run check、git diff --check 通过。
+
+实机：当前归档运行时 /assets/v1/shared-52-JcfRCCiW.js，导出 Kp；加载 39,482 基础/49 动态消息，messagesLocale=zh-Hans，2 次目录请求。初始 Code 页面尚保留英文，切换 Cowork/Code 后均看到中文；不能仅据 Applied 宣称已刷新全部界面。通过 CUA 正常退出测试 Claude，再从原入口重开，真实 Magpie watcher 识别新进程，但返回 needs-accessibility：Magpie 未具备菜单自动化权限。已向用户发出单独权限确认，尚不能宣称自动启动链路通过。
+
+5 个运行源码文件已同步本机已安装插件；旧文件备份在 ~/Library/Application Support/claude-desktop-zh/backups/plugin-20261028-asar。通过 magpie plugin options 保存同样的 locale/runtimeAutoLoad 使宿主正常重载，未改其他插件。没有提交/推送/发布；不要执行 plugin update 覆盖本地修复。原 Claude.app、签名、Gateway/密钥与聊天配置未修改。
+
+
 ## 2026-10-28 macOS 运行时中文实机通过（一键命令已验收）
 
 magpie 的 GitHub 发现查询为 `topic:magpie-plugin archived:false fork:false`，fork 会被排除；因此最终发布的是非 fork 仓库 https://github.com/liwenjinchn/claude-desktop-zh（v0.2.1，topics 已加 `magpie-plugin` 等）；原 fork 已改名为 https://github.com/liwenjinchn/claude-desktop-zh-fork，仅作镜像/历史，不作为发现入口。

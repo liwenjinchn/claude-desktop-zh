@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), '3p-zh-restore-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), '3p-zh-restore-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const before = Buffer.from('original frontend'), after = Buffer.from('localized frontend');
   fs.mkdirSync(path.join(root, 'app/resources'), { recursive: true });

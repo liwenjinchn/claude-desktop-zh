@@ -16,8 +16,9 @@ function harness(t, overrides = {}) {
   const state = { pids: [111], last: null, applied: [], toasts: [] };
   const directory = tempDir(t);
   const controller = {};
-  const input = { client: { tui: { showToast: message => state.toasts.push(message) } } };
+  const input = { directory, client: { tui: { showToast: message => state.toasts.push(message) } } };
   const options = { locale: 'zh-Hans', mode: 'original', allowWrites: true, runtimeAutoLoad: true, ...overrides.options };
+  fs.writeFileSync(path.join(directory, 'plugins.json'), JSON.stringify({ plugins: [{ spec: 'github:liwenjinchn/claude-desktop-zh', options }] }));
   const dependencies = {
     platform: 'darwin',
     macPollMs: 5,
@@ -31,6 +32,7 @@ function harness(t, overrides = {}) {
     ...overrides.dependencies,
   };
   const host = createRuntimeHost(input, options, controller, dependencies);
+  t.after(() => host.stop());
   return { host, state, directory };
 }
 
@@ -68,7 +70,7 @@ test('macOS watcher applies after a new Claude process, waits on exit and applie
 });
 
 test('macOS watcher adopts an already applied process and does not re-open the debugger', async t => {
-  const { host, state } = harness(t, { dependencies: { macLastApplied: () => ({ state: 'Applied', pid: 111 }) } });
+  const { host, state } = harness(t, { dependencies: { macLastApplied: () => ({ state: 'Applied', pid: 111, locale: 'zh-Hans' }) } });
   await host.start();
   await sleep(50);
   assert.equal(host.state().state, 'Applied');
@@ -132,4 +134,40 @@ test('a newer plugin host takes ownership and the old watcher stops without appl
   assert.equal(first.state.applied.length, 1);
   first.host.stop();
   second.host.stop();
+});
+
+
+test('macOS watcher distinguishes discovery failure from an app that is closed', async t => {
+  const { host } = harness(t, { dependencies: { macPids: () => { throw new Error('Unknown frontend'); } } });
+  t.after(() => host.stop());
+  await host.start();
+  await sleep(40);
+  assert.equal(host.state().state, 'discovery-failed');
+});
+
+
+test('registry removal or saved options change stops a Mac watcher before the next apply', async t => {
+  for (const plugins of [[], [{ spec: 'github:liwenjinchn/claude-desktop-zh', off: true }], [{ spec: 'github:liwenjinchn/claude-desktop-zh', options: { locale: 'zh-Hant' } }]]) {
+    const { host, state, directory } = harness(t);
+    state.pids = [];
+    await host.start();
+    fs.writeFileSync(path.join(directory, 'plugins.json'), JSON.stringify({ plugins }));
+    state.pids = [222];
+    await sleep(50);
+    assert.equal(host.state().state, 'stopped');
+    assert.equal(state.applied.length, 0);
+  }
+});
+
+test('a busy retired Mac host does not overwrite the new owners state', async t => {
+  let release;
+  const first = harness(t, { dependencies: { macApply: () => new Promise(resolve => { release = resolve; }) } });
+  await first.host.start();
+  const second = harness(t, { dependencies: { macStateDirectory: first.directory, macPids: () => [222] } });
+  await second.host.start();
+  await sleep(30);
+  release({ state: 'Applied', pages: [] });
+  await sleep(30);
+  const saved = JSON.parse(fs.readFileSync(path.join(first.directory, 'watcher.json')));
+  assert.equal(saved.appliedPid, 222);
 });
