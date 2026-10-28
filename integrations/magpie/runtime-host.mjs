@@ -22,7 +22,7 @@ function identifiesPlugin(spec) {
   if (/^magpie-claude-zh(?:@[^/\s]+)?$/.test(spec)) return true;
   // GitHub installs use github:owner/repo until npm has a matching release.
   // Keep the previous repository URL working through GitHub's rename redirect.
-  return /^(?:github:|(?:git\+)?https:\/\/github\.com\/)(?:polang233|liwenjinchn)\/claude-desktop(?:-3p)?-zh(?:\.git)?(?:#[a-z0-9._/-]+)?$/i.test(spec);
+  return /^(?:github:|(?:git\+)?https:\/\/github\.com\/)(?:polang233|liwenjinchn)\/claude-desktop(?:-3p)?-zh(?:-mac)?(?:\.git)?(?:#[a-z0-9._/-]+)?$/i.test(spec);
 }
 
 export function registrySnapshot(directory, options) {
