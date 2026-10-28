@@ -13,6 +13,31 @@ const PRIVATE = 'fixture-private-title-body-session-credential';
 const sameFixturePath = (input, expected) => process.platform === 'win32'
   ? path.resolve(String(input)).toLowerCase() === path.resolve(expected).toLowerCase()
   : String(input) === expected;
+// Alias/drift tests model filesystem identities, including their canonical
+// lookup. Use deterministic IDs for every directory in those tests so native
+// Windows path spelling and file-ID behavior cannot invalidate the model.
+function mockDirectoryIdentities(t, identityPath = key => key, revision = () => 0n) {
+  const lstat = fs.lstatSync, realpath = fs.realpathSync.native;
+  const ids = new Map();
+  const canonicalKey = input => {
+    const resolved = path.normalize(realpath(input));
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  };
+  t.mock.method(fs, 'lstatSync', (input, settings) => {
+    const stat = lstat(input, settings);
+    if (!settings?.bigint || !stat.isDirectory() || stat.isSymbolicLink()) return stat;
+    const key = canonicalKey(input), identity = identityPath(key);
+    if (!ids.has(identity)) ids.set(identity, BigInt(ids.size + 1));
+    const ino = ids.get(identity) + revision(key);
+    return new Proxy(stat, { get(target, property) {
+      if (property === 'dev') return 1n;
+      if (property === 'ino') return ino;
+      const value = Reflect.get(target, property);
+      return typeof value === 'function' ? value.bind(target) : value;
+    } });
+  });
+  return canonicalKey;
+}
 function fixture(t) {
   // Canonicalize the platform temp parent so a machine's /tmp alias is not
   // mistaken for a link introduced inside a profile fixture.
@@ -229,13 +254,12 @@ test('ancestor file identities reject drive/volume aliases even when canonical s
   const { root, source, put } = fixture(t);
   put('a.json', '{}');
   const aliasParent = path.join(root, 'alias-parent'); fs.mkdirSync(aliasParent);
-  const lstat = fs.lstatSync;
-  // Simulate an OS alias (SUBST/volume/short-name) without creating or changing
-  // a real drive. Both the alias path and its canonical path have source's ID.
-  t.mock.method(fs, 'lstatSync', (input, settings) => {
-    if (sameFixturePath(input, aliasParent) && settings?.bigint) return lstat(source, settings);
-    return lstat(input, settings);
-  });
+  let sourceKey, aliasKey;
+  const key = mockDirectoryIdentities(t, value => value === aliasKey ? sourceKey : value);
+  sourceKey = key(source); aliasKey = key(aliasParent);
+  assert.notEqual(sourceKey, aliasKey);
+  // Simulate an OS alias (SUBST/volume/short-name) without changing a real
+  // drive: distinct canonical strings share the same reliable directory ID.
   const target = path.join(aliasParent, 'snapshot');
   assert.throws(() => copySnapshot(source, target, { assertQuiescent() {} }), code('PROFILE_PATH_OVERLAP'));
   assert.equal(fs.existsSync(target), false);
@@ -261,18 +285,14 @@ test('canonical aliases are checked and missing reliable identities fail closed'
 test('copy rejects a changed directory identity after the initial scan', t => {
   const { source, destination, put } = fixture(t);
   put('a.json', '{}');
-  const lstat = fs.lstatSync;
-  let changed = false, calls = 0;
-  t.mock.method(fs, 'lstatSync', (input, settings) => {
-    const stat = lstat(input, settings);
-    if (sameFixturePath(input, source) && settings?.bigint && changed) {
-      return { dev: stat.dev, ino: stat.ino + 1n, isDirectory: () => true, isSymbolicLink: () => false };
-    }
-    return stat;
-  });
+  let changed = false, calls = 0, sourceKey;
+  const key = mockDirectoryIdentities(t, value => value,
+    value => changed && value === sourceKey ? 1000000n : 0n);
+  sourceKey = key(source);
   assert.throws(() => copySnapshot(source, destination, { assertQuiescent() {
     if (++calls === 2) changed = true;
   } }), code('PROFILE_SOURCE_CHANGED'));
+  assert.equal(calls, 2);
   assert.equal(fs.existsSync(destination), false);
 });
 
