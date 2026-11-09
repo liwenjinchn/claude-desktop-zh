@@ -171,3 +171,30 @@ test('a busy retired Mac host does not overwrite the new owners state', async t 
   const saved = JSON.parse(fs.readFileSync(path.join(first.directory, 'watcher.json')));
   assert.equal(saved.appliedPid, 222);
 });
+
+for (const [message, reason] of [
+  ['Missing compatible zh-Hans base/dynamic catalogs. Import official resources first.', 'catalog-unavailable'],
+  ['Official catalog returned HTTP 403. Use catalog import or catalog cache.', 'catalog-unavailable'],
+  ['Unsupported archived frontend: expected one locale runtime.', 'unsupported-frontend'],
+]) {
+  test(`macOS watcher identifies permanent compatibility failure: ${message}`, async t => {
+    let attempts = 0;
+    const { host } = harness(t, { dependencies: { macApply: async () => { attempts++; throw new Error(message); } } });
+    await host.start();
+    await sleep(60);
+    assert.equal(host.state().state, 'apply-failed');
+    assert.equal(host.state().failureReason, reason);
+    assert.equal(attempts, 1);
+    assert.equal(host.state().automaticNextLaunch, true);
+  });
+}
+
+test('explicit successful catalog repair recovers an exhausted watcher without restarting Claude', async t => {
+  const { host, state } = harness(t, { dependencies: { macApply: async () => { throw Error('Official catalog returned HTTP 403.'); } } });
+  await host.start(); await sleep(30);
+  assert.equal(host.state().failureReason, 'catalog-unavailable');
+  state.last = { state: 'Applied', pid: 111, locale: 'zh-Hans' };
+  await sleep(30);
+  assert.equal(host.state().state, 'Applied');
+  assert.equal(host.state().failureReason, undefined);
+});

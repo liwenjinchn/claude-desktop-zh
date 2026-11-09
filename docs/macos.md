@@ -74,3 +74,24 @@ node bin/claude-3p-zh.mjs mac-restore
 - 状态成功但界面未更新：先核实可见页面；早期已打开的视图可能保留旧渲染，切换到其他页面后返回再检查。冷启动结果应单独验证。
 
 [安装步骤](first-install.md) · [插件设置](magpie.md) · [反馈问题](https://github.com/liwenjinchn/claude-desktop-zh/issues)
+
+
+## 下载 403：通过 Chrome 更新官方词库
+
+在插件「语言资源维护」工作台点击 **通过浏览器更新官方词库并加载中文**。
+这是明确点击触发的操作，后台 watcher 不会自动弹浏览器。依次打开两份
+`https://claude.ai/i18n/zh-Hans.json`（或 zh-Hant）和 dynamic 词库。
+若出现网站验证，请在 Chrome 完成；关闭或离开该页面会取消操作。
+
+使用 Chrome 原生页面保存接口，不读取 Cookie、不启用远程调试，也不要求
+允许 AppleScript 执行 JavaScript。需要已安装 Chrome 和 magpie → Chrome
+的 macOS 自动化许可；插件不自动变更权限。
+
+两份 JSON 暂存并通过当前应用的语言接口和 95% 覆盖率校验后，才追加到词库目录，
+保留旧词库。随后自动尝试加载中文；Claude 未运行或加载失败会单独报告，
+不重启 Claude、不更改网关或会话。失败/超时后可重试，验证页面保留供用户处理。
+每份词库最多等待约 90 秒，控制器允许整个操作最多 240 秒。
+
+CLI：`claude-desktop-zh catalog browser --locale zh-Hans --catalog-dir <目录>`。
+CLI 此命令仅更新词库；工作台按钮另外执行加载中文。
+目前仅实现 macOS Google Chrome。Windows 不显示该按钮。

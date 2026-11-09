@@ -69,6 +69,8 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
         ? '已启用启动时自动加载；打开 Claude 后会自动加载中文。'
         : next.state === 'Applied' && previous.state !== next.state
           ? 'Claude 中文已加载。'
+          : next.state === 'apply-failed' && next.failureReason === 'catalog-unavailable' && previous.failureReason !== next.failureReason
+            ? '官方词库下载失败。请打开「语言资源维护」，点击「通过浏览器更新官方词库并加载中文」。'
           : next.state === 'needs-accessibility' && previous.state !== next.state
             ? '需要给 magpie 授予辅助功能权限，才能自动加载中文。'
             : next.state === 'needs-setup' && previous.state !== next.state
@@ -127,6 +129,16 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
     }
     if (pid !== macSeenPid) { macSeenPid = pid; macAttempts = 0; current = { ...current, note: undefined, lastResult: undefined }; }
     if (current.state === 'Applied' && current.appliedPid === pid) return;
+    // An explicit browser update can repair an exhausted watcher without
+    // restarting Claude or changing saved plugin options.
+    if (current.failureReason === 'catalog-unavailable') {
+      const last = macLastApplied();
+      if (last?.state === 'Applied' && last.pid === pid && last.locale === localeValue(options.locale)) {
+        publish({ ...current, state: 'Applied', failureReason: undefined, note: undefined,
+          automaticNextLaunch: true, appliedPid: pid, lastResult: 'already-applied' });
+        return;
+      }
+    }
     if (macAttempts >= 8) {
       if (current.state !== 'apply-failed' && current.state !== 'needs-accessibility' && current.state !== 'needs-setup') {
         publish({ ...current, state: 'apply-failed', automaticNextLaunch: true, appliedPid: pid });
@@ -157,7 +169,15 @@ export function createRuntimeHost(input, options, controller, dependencies = {})
       if (stopRequested || macOwnerChanged()) return;
       if (macRegistryChanged()) { stop(); return; }
       const message = String(error?.message || error);
-      if (/Accessibility permission/i.test(message)) {
+      if (/Missing compatible zh-Han[st] base\/dynamic catalogs|Official catalog returned HTTP|Catalog hash mismatch/i.test(message)) {
+        macAttempts = 8;
+        publish({ ...current, state: 'apply-failed', automaticNextLaunch: true, appliedPid: pid,
+          failureReason: 'catalog-unavailable', note: '中文词库不兼容或下载失败；请在「语言资源维护」点击「通过浏览器更新官方词库并加载中文」。' });
+      } else if (/Unsupported archived frontend|Unsupported language-store export/i.test(message)) {
+        macAttempts = 8;
+        publish({ ...current, state: 'apply-failed', automaticNextLaunch: true, appliedPid: pid,
+          failureReason: 'unsupported-frontend', note: '当前 Claude 前端结构尚未适配，请更新中文插件。' });
+      } else if (/Accessibility permission/i.test(message)) {
         macAttempts = 8;
         publish({ ...current, state: 'needs-accessibility', automaticNextLaunch: true, appliedPid: pid, note: '给 magpie 授予辅助功能权限后重试。' });
       } else if (/not running|No 3p Gateway|not configured for 3p|allowDevTools is not enabled/i.test(message)) {

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { updateBrowserCatalogs } from '../lib/browser-catalogs.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { inspect, plan, prepareCopy, status, switchLocale, restore, launch, detect3p } from '../lib/install.mjs';
@@ -36,6 +37,7 @@ runtime-setup-status [--profile-dir <Claude-3p directory>]
 runtime-setup [--profile-dir <Claude-3p directory>] [--state-dir <backup directory>]
 runtime-setup-restore --file <setup journal> [--profile-dir <Claude-3p directory>]
 catalog import --locale <locale> --kind base|dynamic --file <JSON> [--url <source>]
+catalog browser --locale <locale> [--source <Claude.app>]  (macOS Chrome; explicit action)
 catalog cache  --locale <locale> [--cache <Chromium Cache_Data directory>]
 catalog fetch  --locale <locale> [--kind base|dynamic] [--url <official URL>]
 prepare-copy  [--source <app>] [--destination <new directory>] [--locale zh-Hans|zh-Hant]
@@ -142,7 +144,8 @@ async function main() {
       if (subcommand === 'import') result = saveCatalog(directory(), locale(), kind, fs.readFileSync(required(options, 'file')), { source: 'user-import', ...(options.url ? { url: options.url } : {}) });
       else if (subcommand === 'cache') result = options.cache ? importCache(options.cache, directory(), locale()) : importDiscoveredCaches(directory(), locale());
       else if (subcommand === 'fetch') result = await fetchCatalog(directory(), locale(), kind, options.url ?? `https://claude.ai/i18n/${kind === 'dynamic' ? 'dynamic/' : ''}${locale()}.json`);
-      else throw new Error('Use catalog import, cache, or fetch.');
+      else if (subcommand === 'browser') result = await updateBrowserCatalogs(directory(), locale(), options.source);
+      else throw new Error('Use catalog import, cache, fetch, or browser.');
       break;
     }
     case 'prepare-copy': {

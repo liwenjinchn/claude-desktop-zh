@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
+import { sha256 } from '../lib/common.mjs';
 import {
   applyMacLocalization, buildMacActivationCode, claudePids, findClaudeApp,
   macLayout, openMainProcessInspector, readDeveloperSettings, RESTORE_CODE, waitForInspectorTarget,
@@ -60,7 +61,7 @@ test('inspector target must match the expected PID and executable', async () => 
 
 test('runtime activation code skips an already matching language without touching the page', async () => {
   const code = buildMacActivationCode({ locale: 'zh-Hans', base: {}, dynamic: {} });
-  const runtime = { locale: 'zh-Hans', restored: false, status: () => ({ locale: 'zh-Hans', messagesLocale: 'zh-Hans', catalogRequestsServed: 2, restored: false }) };
+  const runtime = { locale: 'zh-Hans', restored: false, status: () => ({ locale: 'zh-Hans', messagesLocale: 'zh-Hans', catalogSha256: sha256(Buffer.from('[{},{}]')), catalogRequestsServed: 2, restored: false }) };
   const result = await vm.runInNewContext(code, { claudeChineseRuntime: runtime });
   assert.equal(result.skipped, true);
   assert.equal(result.status.messagesLocale, 'zh-Hans');
@@ -180,4 +181,9 @@ test('menu automation checks the actual operation instead of the legacy global a
 test('activation does not skip a control whose messages are still in another language', async () => {
   const runtime = { status: () => ({ locale: 'zh-Hans', messagesLocale: 'en-US', restored: false }), restore: () => { throw new Error('stale control restored'); } };
   await assert.rejects(vm.runInNewContext(buildMacActivationCode({ locale: 'zh-Hans', base: {}, dynamic: {} }), { claudeChineseRuntime: runtime }), /stale control restored/);
+});
+
+test('updated catalogs do not skip an existing same-language runtime', async () => {
+  const runtime = { status: () => ({ locale: 'zh-Hans', messagesLocale: 'zh-Hans', catalogSha256: 'old', restored: false }), restore: () => { throw Error('old catalog restored'); } };
+  await assert.rejects(vm.runInNewContext(buildMacActivationCode({ locale: 'zh-Hans', base: {a:'新翻译'}, dynamic: {} }), { claudeChineseRuntime: runtime }), /old catalog restored/);
 });

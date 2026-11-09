@@ -6,8 +6,8 @@ import { defaultLayout } from '../../lib/discover.mjs';
 
 // Fixed CLI commands only. Explicit paths take priority; discovery is lazy so
 // restoring a managed copy never depends on the original app or gateway.
-export const WRITES = ['install', 'prepare', 'switch', 'restore', 'import-cache', 'mac-apply', 'mac-restore'];
-export const ACTIONS = ['check', 'install', 'discover', 'detect', 'status', 'plan', 'import-cache', 'prepare', 'switch', 'restore', 'launch', 'mac-apply', 'mac-restore'];
+export const WRITES = ['install', 'prepare', 'switch', 'restore', 'import-cache', 'mac-apply', 'mac-restore', 'browser-update'];
+export const ACTIONS = ['check', 'install', 'discover', 'detect', 'status', 'plan', 'import-cache', 'prepare', 'switch', 'restore', 'launch', 'mac-apply', 'mac-restore', 'browser-update'];
 
 export function createController(options = {}, runProcess = runCLI) {
   let busy = false;
@@ -51,6 +51,7 @@ export function createController(options = {}, runProcess = runCLI) {
       case 'restore': args = mode === 'original' ? ['original-restore', '--state-dir', stateDirectory] : ['restore', '--root', root]; break;
       case 'launch': args = ['launch', '--root', root]; break;
       case 'mac-apply': args = ['mac-apply', ...sourceArgs(), '--locale', language, ...catalogArgs(), ...optional('--mac-owner', runtimeOwner), ...optional('--mac-owner-instance', runtimeOwnerInstance)]; break;
+      case 'browser-update': args = ['catalog', 'browser', ...sourceArgs(), '--locale', language, ...catalogArgs()]; break;
       case 'mac-restore': args = ['mac-restore', ...sourceArgs()]; break;
       default: throw new Error('Unsupported action.');
     }
@@ -60,8 +61,8 @@ export function createController(options = {}, runProcess = runCLI) {
     if (!ACTIONS.includes(action)) throw new Error('Unsupported action.');
     const language = locale(selection.locale);
     if (mode === 'original' && ['prepare', 'launch'].includes(action)) throw new Error('Copy actions require explicit mode: copy. Original mode never creates or launches a separate profile.');
-    if (mode === 'copy' && ['install', 'check', 'mac-apply', 'mac-restore'].includes(action)) throw new Error('Original-install actions require mode: original.');
-    if (['mac-apply', 'mac-restore'].includes(action) && platform !== 'darwin') throw new Error('macOS runtime localization is available on macOS only.');
+    if (mode === 'copy' && ['install', 'check', 'mac-apply', 'mac-restore', 'browser-update'].includes(action)) throw new Error('Original-install actions require mode: original.');
+    if (['mac-apply', 'mac-restore', 'browser-update'].includes(action) && platform !== 'darwin') throw new Error('macOS runtime localization is available on macOS only.');
     if (action === 'launch' && confirmation !== action) throw new Error('Confirm the exact action.');
     if (busy) throw new Error('Another plugin operation is running.');
     if (WRITES.includes(action)) {
@@ -86,6 +87,11 @@ export function createController(options = {}, runProcess = runCLI) {
           await command('import-cache', language);
           await command('plan', language);
         }
+      }
+      if (action === 'browser-update') {
+        const catalogs = await command(action, language);
+        try { return { ...catalogs, application: await command('mac-apply', language) }; }
+        catch (error) { return { ...catalogs, application: { state: 'Deferred', note: error.message } }; }
       }
       if (action === 'mac-apply') {
         try { return await command(action, language, selection.runtimeOwner, selection.runtimeOwnerInstance); }
@@ -175,7 +181,7 @@ export function createController(options = {}, runProcess = runCLI) {
 }
 function runCLI(config, args) {
   return new Promise((resolve, reject) => {
-    execFile(config.executable, [config.cli, ...args], { cwd: config.cwd, windowsHide: true, timeout: 120_000, maxBuffer: 8 * 1024 * 1024, shell: false }, (error, stdout, stderr) => {
+    execFile(config.executable, [config.cli, ...args], { cwd: config.cwd, windowsHide: true, timeout: args[0] === 'catalog' && args[1] === 'browser' ? 240_000 : 120_000, maxBuffer: 8 * 1024 * 1024, shell: false }, (error, stdout, stderr) => {
       if (error) { reject(new Error(stderr.trim() || 'CLI failed or exceeded 120 seconds. Inspect the managed copy before retrying.')); return; }
       try { resolve(JSON.parse(stdout)); } catch { reject(new Error('CLI did not return JSON.')); }
     });

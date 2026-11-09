@@ -1,6 +1,6 @@
 (async () => {
   const labels = { source: '应用位置', root: '独立副本', profile: '3p 数据', gateway: '网关配置', catalog: '语言资源', caches: '可用缓存', locale: '默认语言' };
-  const names = { check: '检查兼容性', install: '写入语言资源', detect: '检查网关', status: '查看状态', plan: '查看计划', 'import-cache': '导入语言缓存', prepare: '创建独立副本', switch: '切换语言', launch: '启动独立副本', restore: '恢复原始语言文件', 'mac-apply': '立即加载中文', 'mac-restore': '撤销中文注入' };
+  const names = { 'browser-update': '通过浏览器更新官方词库并加载中文', check: '检查兼容性', install: '写入语言资源', detect: '检查网关', status: '查看状态', plan: '查看计划', 'import-cache': '导入语言缓存', prepare: '创建独立副本', switch: '切换语言', launch: '启动独立副本', restore: '恢复原始语言文件', 'mac-apply': '立即加载中文', 'mac-restore': '撤销中文注入' };
   const localeNames = { 'zh-Hans': '简体中文', 'zh-Hant': '繁體中文' };
   const log = document.getElementById('log');
   const selector = document.getElementById('locale-select');
@@ -35,7 +35,7 @@
       ? '当前目标：正在运行的 Claude 第三方模式窗口。通过 Claude 自己的开发者主进程调试器注入官方中文资源，不修改 Claude.app、签名或网关。'
       : copyMode ? '当前目标：独立测试副本。操作不会安装到日常应用。' : '当前目标：现有应用的语言文件。保留现有配置；受保护的商店安装会拒绝修改。';
     document.getElementById('guard').textContent = isMac
-      ? '需要 Claude 已开启 allowDevTools，并允许 Terminal 或 magpie 使用辅助功能。加载完成后会关闭主进程调试器；重启 Claude 后需要再次加载。'
+      ? '需要 Claude 已开启 allowDevTools，并允许 Terminal 或 magpie 使用辅助功能。加载完成后会关闭主进程调试器；保持 magpie 运行并启用自动加载时，重启 Claude 后会自动加载。'
       : '每次写入和启动都会再次确认。请先关闭目标应用；发现文件版本变化或权限不足时会停止。';
     const issues = state.paths.issues;
     if (issues && Object.keys(issues).length) show({ message: '部分路径未能自动确定，请先检查兼容性或查看状态。', issues });
@@ -52,9 +52,9 @@
         const locale = selector.value;
         const confirmed = button.dataset.write === 'true' || action === 'launch';
         const target = isMac ? '正在运行的 Claude 窗口' : copyMode ? '独立测试副本' : '现有应用';
-        if (confirmed && !window.confirm(`确认对${target}执行「${names[action]}」？\n所选语言：${localeNames[locale]}\n目标：${(copyMode ? state.paths.root : state.paths.source) || '自动检测（不明确时会停止）'}`)) return;
+        if (confirmed && action !== 'browser-update' && !window.confirm(`确认对${target}执行「${names[action]}」？\n所选语言：${localeNames[locale]}\n目标：${(copyMode ? state.paths.root : state.paths.source) || '自动检测（不明确时会停止）'}`)) return;
         enable(false);
-        show(names[action] + '进行中…');
+        show(action === 'browser-update' ? '正在打开 Chrome 官方词库页面；如出现网站验证，请在浏览器完成。成功后将自动导入并加载中文，请勿关闭词库页面。' : names[action] + '进行中…');
         try {
           const started = await api('/api/run', { method: 'POST', body: JSON.stringify({ action, confirm: confirmed ? action : '', locale }) });
           let job;
@@ -62,7 +62,12 @@
             await new Promise(resolve => setTimeout(resolve, 700));
             job = await api('/api/jobs/' + started.id);
           } while (job.state === 'running');
-          show(job.state === 'done' ? job.result : job.error);
+          if (action === 'browser-update' && job.state === 'done') {
+            const result = job.result;
+            const applied = result.application?.state === 'Applied';
+            show(applied ? '官方中文词库已校验并更新，中文已加载。旧词库和现有会话保留。'
+              : '官方中文词库已校验并更新。中文尚未完整加载：' + (result.application?.note || result.application?.state || '请打开 Claude 后点击「立即加载中文」。'));
+          } else show(job.state === 'done' ? job.result : job.error);
         } catch (error) { show(error.message); }
         finally { enable(true); }
       });

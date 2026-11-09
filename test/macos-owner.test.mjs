@@ -97,3 +97,21 @@ test('Mac restore records failed page outcomes and rejects a completely failed r
   deps.restore = async () => [{ id: 1, error: 'page restore timed out' }, { id: 2, result: { restored: true } }];
   assert.equal((await restoreMacLocalization({ stateDirectory: f.root }, deps)).state, 'PartiallyRestored');
 });
+
+test('main process delegates same-language catalog freshness to the activation code', async t => {
+  const f = fixture(t), codeFile = path.join(f.root, 'language.js');
+  fs.writeFileSync(codeFile, 'new-catalog-activation');
+  const calls = [];
+  const page = { id: 1, isDestroyed: () => false, getURL: () => 'app://localhost/new', executeJavaScript: async code => {
+    calls.push(code);
+    return code === 'new-catalog-activation' ? { skipped: false, status: { catalogSha256: 'new' } }
+      : { locale: 'zh-Hans', messagesLocale: 'zh-Hans', catalogSha256: 'old', restored: false };
+  } };
+  const require = createRequire(import.meta.url);
+  const client = { evaluate: expression => vm.runInNewContext(expression, {
+    process: { mainModule: { require: name => name === 'electron' ? { webContents: { getAllWebContents: () => [page] } } : require(name) } },
+    setTimeout: (callback, ms) => { const timer = setTimeout(callback, ms); timer.unref(); return timer; },
+  }) };
+  const result = await injectCodeIntoPages(client, codeFile, 'zh-Hans');
+  assert.equal(calls.length, 2); assert.equal(result[0].result.status.catalogSha256, 'new');
+});
